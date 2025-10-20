@@ -41,11 +41,11 @@ try {
  */
 function getStats($pdo) {
     // 총 책 권수
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM bt_books");
+    $stmt = $pdo->query("SELECT COUNT(*) as total FROM comic");
     $totalBooks = $stmt->fetch()['total'];
     
-    // 판매 중인 책 (book_status = 1)
-    $stmt = $pdo->query("SELECT COUNT(*) as active FROM bt_books WHERE book_status = 1");
+    // 판매 중인 책 (status = 1)
+    $stmt = $pdo->query("SELECT COUNT(*) as active FROM comic WHERE status = 1");
     $activeBooks = $stmt->fetch()['active'];
     
     // 어제 대비 변화율 계산 (Mock 데이터)
@@ -104,9 +104,9 @@ function getRecentOrders($pdo) {
     
     // 실제 책 데이터 가져오기
     $stmt = $pdo->query("
-        SELECT ID, book_title 
-        FROM bt_books 
-        WHERE book_status = 1
+        SELECT ID, title 
+        FROM comic 
+        WHERE status = 1
         ORDER BY ID DESC 
         LIMIT 5
     ");
@@ -118,7 +118,7 @@ function getRecentOrders($pdo) {
     foreach ($books as $index => $book) {
         $orders[] = [
             'order_id' => 1000 + $index,
-            'book_title' => $book['book_title'],
+            'title' => $book['title'],
             'order_date' => date('Y-m-d H:i', strtotime("-" . rand(0, 48) . " hours")),
             'status' => $statuses[array_rand($statuses)]
         ];
@@ -136,10 +136,10 @@ function getBestsellers($pdo) {
     $stmt = $pdo->query("
         SELECT 
             ID,
-            book_title,
+            title,
             cover_img
-        FROM bt_books 
-        WHERE book_status = 1
+        FROM comic 
+        WHERE status = 1
         ORDER BY ID DESC
         LIMIT 5
     ");
@@ -149,7 +149,7 @@ function getBestsellers($pdo) {
     foreach ($books as $book) {
         $bestsellers[] = [
             'book_id' => $book['ID'],
-            'title' => $book['book_title'],
+            'title' => $book['title'],
             'cover_image' => $book['cover_img'],
             'sales_count' => rand(50, 500)
         ];

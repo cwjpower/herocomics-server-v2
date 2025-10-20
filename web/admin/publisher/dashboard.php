@@ -4,7 +4,7 @@ $page_title = "대시보드";
 $current_page = "dashboard";
 
 // 헤더 포함
-require_once 'layout/header.php';
+require_once 'layout/modern_header.php';
 ?>
 
 <!-- 대시보드 고유 컨텐츠 시작 -->
@@ -437,5 +437,5 @@ require_once 'layout/header.php';
 
 <?php
 // 푸터 포함
-require_once 'layout/footer.php';
+require_once 'layout/modern_footer.php';
 ?>

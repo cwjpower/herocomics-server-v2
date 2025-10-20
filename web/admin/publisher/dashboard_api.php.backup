@@ -1,10 +1,11 @@
 <?php
-// 데이터베이스 연결 설정
+// 데이터베이스 연결 설정 가져오기
 require_once '../conf/db.php';
 
 header('Content-Type: application/json; charset=utf-8');
 
 try {
+    // db.php에서 이미 $pdo 연결이 생성되어 있음
     
     // 1. 통계 데이터 가져오기
     $stats = getStats($pdo);
@@ -38,17 +39,16 @@ try {
 /**
  * 통계 데이터 가져오기
  */
-
 function getStats($pdo) {
     // 총 책 권수
-    $stmt = $pdo->query("SELECT COUNT(*) as total FROM bt_books");
+    $stmt = $pdo->query("SELECT COUNT(*) as total FROM comic");
     $totalBooks = $stmt->fetch()['total'];
     
     // 판매 중인 책 (book_status = 1)
-    $stmt = $pdo->query("SELECT COUNT(*) as active FROM bt_books WHERE book_status = 1");
+    $stmt = $pdo->query("SELECT COUNT(*) as active FROM comic WHERE book_status = 1");
     $activeBooks = $stmt->fetch()['active'];
     
-    // 어제 대비 변화율 계산 (일단 Mock으로 랜덤 생성)
+    // 어제 대비 변화율 계산 (Mock 데이터)
     $booksChange = rand(-5, 15);
     $activeBooksChange = rand(-3, 10);
     
@@ -72,15 +72,11 @@ function getStats($pdo) {
     ];
 }
 
-
-
-
-/** 최근 7일 매출 추이 가져오기
- *
-*/
+/**
+ * 최근 7일 매출 추이 가져오기
+ */
 function getSalesTrend($pdo) {
     // 주문 테이블이 없으므로 Mock 데이터 생성
-    // TODO: 나중에 실제 주문 데이터에서 집계
     
     $labels = [];
     $values = [];
@@ -106,10 +102,10 @@ function getSalesTrend($pdo) {
 function getRecentOrders($pdo) {
     // 주문 테이블이 없으므로 Mock 데이터 생성
     
-    // 실제 책 데이터 가져오기 (컬럼명 수정: book_id → ID, book_title은 그대로)
+    // 실제 책 데이터 가져오기
     $stmt = $pdo->query("
         SELECT ID, book_title 
-        FROM bt_books 
+        FROM comic 
         WHERE book_status = 1
         ORDER BY ID DESC 
         LIMIT 5
@@ -134,31 +130,36 @@ function getRecentOrders($pdo) {
 /**
  * 베스트셀러 목록 가져오기
  */
-function getRecentOrders($pdo) {
-    // 주문 테이블이 없으므로 Mock 데이터 생성
+function getBestsellers($pdo) {
+    // 주문 테이블이 없으므로 실제 책에 Mock 판매량 추가
     
-    // 실제 책 데이터 가져오기 (컬럼명 수정: book_id → ID, book_title은 그대로)
     $stmt = $pdo->query("
-        SELECT ID, book_title 
-        FROM bt_books 
+        SELECT 
+            ID,
+            book_title,
+            cover_img
+        FROM comic 
         WHERE book_status = 1
-        ORDER BY ID DESC 
+        ORDER BY ID DESC
         LIMIT 5
     ");
     $books = $stmt->fetchAll();
     
-    $orders = [];
-    $statuses = ['pending', 'paid', 'shipping', 'completed'];
-    
-    foreach ($books as $index => $book) {
-        $orders[] = [
-            'order_id' => 1000 + $index,
-            'book_title' => $book['book_title'],
-            'order_date' => date('Y-m-d H:i', strtotime("-" . rand(0, 48) . " hours")),
-            'status' => $statuses[array_rand($statuses)]
+    $bestsellers = [];
+    foreach ($books as $book) {
+        $bestsellers[] = [
+            'book_id' => $book['ID'],
+            'title' => $book['book_title'],
+            'cover_image' => $book['cover_img'],
+            'sales_count' => rand(50, 500)
         ];
     }
     
-    return $orders;
+    // 판매량 기준 내림차순 정렬
+    usort($bestsellers, function($a, $b) {
+        return $b['sales_count'] - $a['sales_count'];
+    });
+    
+    return $bestsellers;
 }
 ?>

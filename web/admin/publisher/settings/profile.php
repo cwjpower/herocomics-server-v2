@@ -45,7 +45,7 @@ if (!$publisher) {
 }
 
 // 헤더 포함
-require_once '../layout/modern_header.php';
+require_once '../layout/header.php';
 ?>
 
 <!-- 출판사 설정 페이지 컨텐츠 -->
@@ -169,5 +169,5 @@ function validatePassword() {
 if (isset($wdb) && is_object($wdb)) {
     @$wdb->close();
 }
-require_once '../layout/modern_footer.php';
+require_once '../layout/footer.php';
 ?>
