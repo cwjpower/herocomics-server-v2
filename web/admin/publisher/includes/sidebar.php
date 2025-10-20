@@ -25,16 +25,6 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
     box-shadow: 2px 0 5px rgba(0,0,0,0.1);
 }
 
-.sidebar-header {
-    padding: 20px;
-    font-size: 20px;
-    font-weight: bold;
-    color: white;
-    text-align: center;
-    margin-bottom: 20px;
-    border-bottom: 1px solid rgba(255,255,255,0.3);
-}
-
 .sidebar-menu {
     list-style: none;
     padding: 0;
@@ -83,11 +73,7 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
 <div class="sidebar">
-    <div class="sidebar-header">
-        HeroComics 출판사
-    </div>
-    
-    <ul class="sidebar-menu">
+<ul class="sidebar-menu">
         <li>
             <a href="<?php echo $base_path; ?>dashboard.php" class="<?php echo $current_file == 'dashboard.php' ? 'active' : ''; ?>">
                 <i class="fas fa-chart-line"></i>
