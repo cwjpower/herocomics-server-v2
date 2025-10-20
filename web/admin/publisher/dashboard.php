@@ -564,13 +564,13 @@ $current_page = "dashboard";
                     </a>
                     
                     <a href="orders/list.php" class="action-btn mb-3">
-                        <i class="fas fa-chart-bar"></i>
+                        <i class="fas fa-shopping-cart"></i>
+                        <div class="label">주문 관리</div>
+                    </a>
                     
                     <a href="sales/dashboard.php" class="action-btn mb-3">
                         <i class="fas fa-won-sign"></i>
                         <div class="label">매출/정산</div>
-                    </a>
-                        <div class="label">상세 통계 보기</div>
                     </a>
                 </div>
             </div>
