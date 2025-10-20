@@ -145,17 +145,25 @@ function getBestsellers($pdo, $publisher_id) {
         SELECT 
             i.book_id,
             i.book_title,
+            b.cover_img,
             COUNT(*) as sales_count,
             SUM(i.sale_price) as total_sales
         FROM bt_order_item i
         INNER JOIN bt_books b ON i.book_id = b.ID
         WHERE b.publisher_id = ?
-        GROUP BY i.book_id, i.book_title
+        GROUP BY i.book_id, i.book_title, b.cover_img
         ORDER BY sales_count DESC
         LIMIT 5
     ");
     $stmt->execute([$publisher_id]);
-    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $books = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // cover_img가 없으면 기본 이미지로 설정
+    foreach ($books as &$book) {
+        $book['cover_image'] = !empty($book['cover_img']) ? $book['cover_img'] : '/admin/images/no-image.png';
+    }
+    
+    return $books;
 }
 
 function getSeriesGroups($pdo, $publisher_id) {
