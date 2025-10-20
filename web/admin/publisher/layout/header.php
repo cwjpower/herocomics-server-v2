@@ -243,7 +243,7 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
     </nav>
     
     <!-- 사이드바 -->
-    <!-- sidebar는 includes/sidebar.php에서 로드 -->
+    
     
     <!-- 메인 컨텐츠 영역 시작 -->
     <main class="main-content">
