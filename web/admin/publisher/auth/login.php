@@ -26,6 +26,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $stmt->execute();
         $publisher = $wdb->get_row($stmt);
         
+        // 디버깅
+        error_log("입력 이메일: " . $email);
+        error_log("입력 비밀번호: " . $password);
+        error_log("DB 조회 결과: " . print_r($publisher, true));
+        
+        // 디버깅
+        error_log("입력 이메일: " . $email);
+        error_log("입력 비밀번호: " . $password);
+        error_log("DB 조회 결과: " . print_r($publisher, true));
+        
         if ($publisher && !empty($publisher['password']) && password_verify($password, $publisher['password'])) {
             // 로그인 성공
             $_SESSION['publisher_id'] = $publisher['publisher_id'];
