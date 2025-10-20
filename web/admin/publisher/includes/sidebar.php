@@ -1,119 +1,84 @@
+/* Updated: 1760969516.8231413 */
 <?php
-// 공통 사이드바 (대시보드 기준)
+// 현재 페이지의 위치를 파악해서 base_path 자동 설정
 $current_file = basename($_SERVER['PHP_SELF']);
 $current_dir = basename(dirname($_SERVER['PHP_SELF']));
 
-// 경로 자동 설정
-if (in_array($current_dir, ['settings', 'books', 'genres', 'orders'])) {
+// settings 폴더에 있으면 ../, 아니면 ./
+if ($current_dir == 'settings') {
     $base_path = '../';
 } else {
     $base_path = './';
 }
 ?>
-
 <style>
+/* 사이드바 스타일 - 보라색 그라디언트 */
 .sidebar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            height: 100vh;
-            width: 250px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            padding: 20px;
+    width: 240px;
+    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+    color: white;
+    min-height: 100vh;
+    padding: 0;
+    position: fixed;
+    left: 0;
+    top: 0;
+    z-index: 1000;
+    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
+}
+
+.sidebar-header {
+    padding: 30px 20px;
+    font-size: 22px;
+    font-weight: bold;
+    color: white;
+    background: rgba(255,255,255,0.1);
+    border-bottom: 1px solid rgba(255,255,255,0.2);
+    text-align: center;
+}
+
+.sidebar-menu {
+    list-style: none;
+    padding: 20px 0;
+    margin: 0;
+}
+
+.sidebar-menu li {
+    margin-bottom: 2px;
+}
+
+.sidebar-menu a {
+    display: flex;
+    align-items: center;
+    padding: 15px 20px;
+    color: rgba(255,255,255,0.9);
+    text-decoration: none;
+    transition: all 0.3s ease;
+    font-size: 15px;
+    border-left: 3px solid transparent;
+}
+
+.sidebar-menu a:hover {
             color: white;
-            overflow-y: auto;
-        }
-        
-        .sidebar .logo {
-            font-size: 24px;
-            font-weight: bold;
-            margin-bottom: 30px;
-            text-align: center;
-        }
-        
-        .sidebar .menu-item {
-            padding: 12px 15px;
-            margin-bottom: 5px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: flex;
-            align-items: center;
-            text-decoration: none;
-            color: rgba(255, 255, 255, 0.8);
-        }
-        
-        .sidebar .menu-item:hover {
-            background: rgba(255, 255, 255, 0.1);
+    background: rgba(255,255,255,0.15);
+    color: white;
+    border-left-color: rgba(255,255,255,0.5);
+}
+
+.sidebar-menu a.active {
             color: white;
-        }
-        
-        .sidebar .menu-item.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-        
-        .sidebar .menu-item i {
-            width: 20px;
-            margin-right: 10px;
-        }
+    background: rgba(255,255,255,0.2);
+    color: white;
+    border-left-color: #fff;
+    font-weight: 600;
+}
+
+body {
+    margin: 0;
+    padding: 0;
+}
+
+.main-content {
+    margin-left: 240px;
+}
 </style>
 
-<div class="sidebar">
-        <div class="logo">
-            <i class="fas fa-book-open"></i> HeroComics
-        </div>
-        
-        <a href="dashboard.php" class="menu-item active">
-            <i class="fas fa-chart-line"></i>
-            <span>대시보드</span>
-        </a>
-        
-        <a href="books/list.php" class="menu-item">
-            <i class="fas fa-book"></i>
-            <span>책 관리</span>
-        </a>
-        
-        <a href="books/book_upload.php" class="menu-item">
-            <i class="fas fa-plus-circle"></i>
-            <span>책 추가</span>
-        </a>
-        
-        <a href="genres/" class="menu-item">
-            <i class="fas fa-tags"></i>
-            <span>장르 관리</span>
-        </a>
-        
-        <a href="#" class="menu-item">
-            <i class="fas fa-shopping-cart"></i>
-            <span>주문 관리</span>
-        </a>
-        
-        <a href="#" class="menu-item">
-            <i class="fas fa-dollar-sign"></i>
-            <span>매출/정산</span>
-        </a>
-        
-        <a href="settings/profile.php" class="menu-item">
-            <i class="fas fa-cog"></i>
-            <span>설정</span>
-        </a>
-    </div>
-    
-    <!-- 메인 컨텐츠 -->
-    <div class="main-content">
-        <h1 class="mb-4">📊 대시보드</h1>
-        
-        <!-- 통계 카드 -->
-        <div class="row" id="statsCards">
-            <div class="col-md-3 mb-4">
-                <div class="stats-card">
-                    <div class="icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
-                        <i class="fas fa-book"></i>
-                    </div>
-                    <div class="label">총 책 권수</div>
-                    <div class="value" id="totalBooks">-</div>
-                    <div class="change positive" id="booksChange">
-                        <i class="fas fa-arrow-up"></i> 로딩 중...
-                    </div>
-                </div>

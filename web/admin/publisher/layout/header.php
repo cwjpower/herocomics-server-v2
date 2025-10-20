@@ -176,6 +176,8 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
     </style>
 </head>
 <body>
+<?php include dirname(__FILE__) . "/../includes/sidebar.php"; ?>
+
     <!-- 상단 네비게이션 -->
     <nav class="navbar top-navbar">
         <div class="container-fluid">
@@ -241,83 +243,7 @@ $current_dir = basename(dirname($_SERVER['PHP_SELF']));
     </nav>
     
     <!-- 사이드바 -->
-    <aside class="sidebar" id="sidebar">
-        <ul class="sidebar-menu">
-            <!-- 대시보드 -->
-            <li>
-                <a href="/admin/publisher/index.php" class="<?= ($current_page == 'index.php' && $current_dir == 'publisher') ? 'active' : '' ?>">
-                    <i class="fas fa-chart-line"></i>
-                    <span>대시보드</span>
-                </a>
-            </li>
-            
-            <!-- 책 관리 -->
-            <li>
-                <a href="/admin/publisher/books/list.php" class="<?= $current_dir == 'books' ? 'active' : '' ?>">
-                    <i class="fas fa-book"></i>
-                    <span>책 관리</span>
-                </a>
-            </li>
-       
-            <li class="nav-item">
-                <a class="nav-link" href="/admin/publisher/genres/">
-                   <i class="bi bi-tags"></i> 장르 관리
-                </a>
-            </li>
-            
-            <!-- 주문 관리 -->
-            <li>
-                <a href="/admin/publisher/orders/list.php" class="<?= $current_dir == 'orders' ? 'active' : '' ?>">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span>주문 관리</span>
-                </a>
-            </li>
-            
-            <!-- 매출/정산 -->
-            <li>
-                <a href="/admin/publisher/sales/stats.php" class="<?= $current_dir == 'sales' ? 'active' : '' ?>">
-                    <i class="fas fa-dollar-sign"></i>
-                    <span>매출/정산</span>
-                </a>
-            </li>
-            
-            <li><hr class="my-2"></li>
-            
-            <!-- 고객 문의 -->
-            <li>
-                <a href="/admin/publisher/support/qna.php">
-                    <i class="fas fa-question-circle"></i>
-                    <span>고객 문의</span>
-                </a>
-            </li>
-            
-            <!-- 리뷰 관리 -->
-            <li>
-                <a href="/admin/publisher/reviews/list.php">
-                    <i class="fas fa-star"></i>
-                    <span>리뷰 관리</span>
-                </a>
-            </li>
-            
-            <li><hr class="my-2"></li>
-            
-            <!-- 설정 -->
-            <li>
-                <a href="/admin/publisher/settings/company.php" class="<?= $current_dir == 'settings' ? 'active' : '' ?>">
-                    <i class="fas fa-cog"></i>
-                    <span>설정</span>
-                </a>
-            </li>
-            
-            <!-- 도움말 -->
-            <li>
-                <a href="/admin/publisher/help.php">
-                    <i class="fas fa-life-ring"></i>
-                    <span>도움말</span>
-                </a>
-            </li>
-        </ul>
-    </aside>
+    <!-- sidebar는 includes/sidebar.php에서 로드 -->
     
     <!-- 메인 컨텐츠 영역 시작 -->
     <main class="main-content">

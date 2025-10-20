@@ -1,7 +1,7 @@
 <?php
 $page_title = '새 책 추가 - HeroComics 출판사 CMS';
 $current_page = 'book_upload';
-require_once '../layout/modern_header.php';
+require_once '../layout/header.php';
 require_once '../../conf/db.php';
 
 $publisher_id = $_SESSION['publisher_id'] ?? 1;
@@ -620,4 +620,4 @@ document.getElementById('bookForm').addEventListener('submit', function(e) {
 });
 </script>
 
-<?php require_once '../layout/modern_footer.php'; ?>
+<?php require_once '../layout/footer.php'; ?>

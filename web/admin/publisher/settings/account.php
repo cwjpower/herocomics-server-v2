@@ -184,8 +184,6 @@ $base_path = '../';
     </style>
 </head>
 <body>
-<?php include "../includes/sidebar.php"; ?>
-<div class="main-content">
     <?php 
     include '../includes/sidebar.php'; 
     include '../includes/header.php';
@@ -250,6 +248,5 @@ $base_path = '../';
             </div>
         </div>
     </div>
-</div>
 </body>
 </html>
