@@ -1,18 +1,24 @@
 <?php
 session_start();
+require_once '../../wps-config.php';
+require_once '../../wps-settings.php';
+
+if (!isset($_SESSION['publisher_id'])) {
+    $_SESSION['publisher_id'] = 1;
+}
 ?>
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>정산 계좌 설정 - HeroComics</title>
+    <title>계좌정보 - HeroComics</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
 <body>
 <?php include "../includes/sidebar.php"; ?>
 
 <div class="main-content" style="margin-left: 270px; padding: 20px;">
-    <h1>💰 정산 계좌 설정</h1>
+    <h1>⚙️ 출판사 설정</h1>
     
     <ul class="nav nav-tabs mb-4">
         <li class="nav-item">
@@ -26,12 +32,14 @@ session_start();
         </li>
     </ul>
     
-    <div class="alert alert-info">
-        💡 정산금은 매월 1일에 등록하신 계좌로 자동 입금됩니다.
-    </div>
-    
     <div class="card">
         <div class="card-body">
+            <h5 class="card-title">💰 정산 계좌 설정</h5>
+            
+            <div class="alert alert-info mb-4">
+                💡 정산금은 매월 1일에 등록하신 계좌로 자동 입금됩니다.
+            </div>
+            
             <form method="POST" action="update.php">
                 <input type="hidden" name="action" value="account">
                 
@@ -42,7 +50,6 @@ session_start();
                         <option value="신한은행">신한은행</option>
                         <option value="우리은행">우리은행</option>
                         <option value="하나은행">하나은행</option>
-                        <option value="농협은행">농협은행</option>
                     </select>
                 </div>
                 
