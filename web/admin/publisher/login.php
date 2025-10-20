@@ -33,6 +33,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
+<?php include "includes/sidebar.php"; ?>
+
     <div class="login-box">
         <h1>🏢 출판사 로그인</h1>
         <?php if (isset($error)): ?>

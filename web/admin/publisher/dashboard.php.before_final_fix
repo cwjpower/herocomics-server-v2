@@ -318,26 +318,6 @@ $current_page = "dashboard";
             height: 3rem;
         }
 /* 시리즈 그룹 스타일 */
-/* 가로 스크롤 스타일 */
-.books-preview::-webkit-scrollbar {
-    height: 8px;
-}
-.books-preview::-webkit-scrollbar-track {
-    background: #f1f1f1;
-    border-radius: 4px;
-}
-.books-preview::-webkit-scrollbar-thumb {
-    background: #888;
-    border-radius: 4px;
-}
-.books-preview::-webkit-scrollbar-thumb:hover {
-    background: #555;
-}
-.series-group-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transition: all 0.3s;
-}
 .series-groups-container {
     background: white;
     padding: 25px;
@@ -395,8 +375,6 @@ $current_page = "dashboard";
     </style>
 </head>
 <body>
-<?php include "includes/sidebar.php"; ?>
-
 <!-- 사이드바 -->
     <div class="sidebar">
         <div class="logo">
@@ -433,7 +411,7 @@ $current_page = "dashboard";
             <span>매출/정산</span>
         </a>
         
-        <a href="settings/profile.php" class="menu-item">
+        <a href="#" class="menu-item">
             <i class="fas fa-cog"></i>
             <span>설정</span>
         </a>
@@ -588,27 +566,26 @@ $current_page = "dashboard";
         async function loadDashboardData() {
             try {
     // 시리즈 그룹 데이터 로드
-
-    // 시리즈 그룹 데이터 로드
     fetch("dashboard_api.php")
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById("seriesGroupsList");
-            if (data.success && data.seriesGroups && data.seriesGroups.length > 0) {
+            if (data.success && data.seriesGroups.length > 0) {
                 container.innerHTML = data.seriesGroups.map(group => `
-                    <div class="series-group-card" onclick="location.href='books/list.php?series=${encodeURIComponent(group.series_name)}'" style="cursor: pointer;">
-                        <div class="series-header">
-                            <h4>📚 ${group.series_name}</h4>
-                            <span class="badge bg-primary">${group.book_count}권</span>
+                    <div class="series-group-card" onclick="location.href='books/list.php?publisher_id=${group.publisher_id}'">
+                        <div class="publisher-name">
+                            <span>🏢</span>
+                            <span>${group.publisher_name}</span>
                         </div>
-                        <div class="books-preview" style="overflow-x: auto; white-space: nowrap; padding: 10px 0; max-width: 400px;">
-                            ${group.books.map(book => `
-                                <img src="${book.cover_image}" 
-                                     alt="${book.title}" 
-                                     title="${book.title}"
-                                     onerror="this.src='/admin/img/no-image.jpg'"
-                                     style="width: 60px; height: 90px; object-fit: cover; border-radius: 8px; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block;">
-                            `).join('')}
+                        <div class="series-stats">
+                            <div class="stat-item">
+                                <span class="stat-value">${group.series_count}</span>
+                                <span class="stat-label">시리즈</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-value">${group.book_count}</span>
+                                <span class="stat-label">권</span>
+                            </div>
                         </div>
                     </div>
                 `).join("");
@@ -620,7 +597,6 @@ $current_page = "dashboard";
             console.error("시리즈 그룹 로드 실패:", error);
             document.getElementById("seriesGroupsList").innerHTML = "<p class='text-center text-danger'>데이터를 불러올 수 없습니다.</p>";
         });
-
                 const response = await fetch('dashboard_api.php');
                 const data = await response.json();
                 
