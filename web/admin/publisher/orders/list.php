@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once '../../wps-config.php';
 require_once '../../wps-settings.php';
 
@@ -8,23 +7,26 @@ if (!isset($_SESSION['publisher_id'])) {
 }
 $publisher_id = $_SESSION['publisher_id'];
 
-// 주문 목록 조회 (출판사 책만)
+// 주문 목록 조회
 $query = "
     SELECT 
         o.order_id,
-        o.created_at as order_date,
+        o.created_dt,
+        o.order_status,
         u.user_login as buyer_name,
         u.user_email as buyer_email,
         i.book_title,
-        i.book_price as amount,
+        i.sale_price as amount,
         o.coupon_code,
-        '결제완료' as status
+        o.cybercash_paid,
+        o.cyberpoint_paid,
+        o.total_paid
     FROM bt_order o
     INNER JOIN bt_order_item i ON o.order_id = i.order_id
     LEFT JOIN bt_users u ON o.user_id = u.ID
     LEFT JOIN bt_books b ON i.book_id = b.ID
     WHERE b.publisher_id = ?
-    ORDER BY o.created_at DESC
+    ORDER BY o.created_dt DESC
     LIMIT 50
 ";
 
@@ -32,6 +34,17 @@ $stmt = $wdb->prepare($query);
 $stmt->bind_param('i', $publisher_id);
 $stmt->execute();
 $orders = $wdb->get_results($stmt);
+
+// 주문 상태 변환
+function get_order_status($status) {
+    switch($status) {
+        case 0: return '대기';
+        case 1: return '결제완료';
+        case 2: return '취소';
+        case 3: return '환불';
+        default: return '알 수 없음';
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ko">
@@ -39,7 +52,6 @@ $orders = $wdb->get_results($stmt);
     <meta charset="UTF-8">
     <title>주문 관리 - HeroComics</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 </head>
 <body>
 <?php include "../includes/sidebar.php"; ?>
@@ -105,13 +117,23 @@ $orders = $wdb->get_results($stmt);
                             <td>
                                 <?php if (!empty($order['coupon_code'])): ?>
                                     🎟️ 쿠폰
+                                <?php elseif ($order['cybercash_paid'] > 0): ?>
+                                    💳 사이버캐시
+                                <?php elseif ($order['cyberpoint_paid'] > 0): ?>
+                                    🎫 사이버포인트
                                 <?php else: ?>
-                                    💳 카드결제
+                                    💰 일반결제
                                 <?php endif; ?>
                             </td>
-                            <td>₩<?php echo number_format($order['amount']); ?></td>
-                            <td><span class="badge bg-success"><?php echo $order['status']; ?></span></td>
-                            <td><?php echo date('Y-m-d H:i', strtotime($order['order_date'])); ?></td>
+                            <td>₩<?php echo number_format($order['total_paid']); ?></td>
+                            <td>
+                                <?php 
+                                $status = get_order_status($order['order_status']);
+                                $badge_class = ($status == '결제완료') ? 'bg-success' : (($status == '취소' || $status == '환불') ? 'bg-danger' : 'bg-warning');
+                                ?>
+                                <span class="badge <?php echo $badge_class; ?>"><?php echo $status; ?></span>
+                            </td>
+                            <td><?php echo date('Y-m-d H:i', strtotime($order['created_dt'])); ?></td>
                             <td>
                                 <a href="detail.php?order_id=<?php echo $order['order_id']; ?>" class="btn btn-sm btn-outline-primary">상세</a>
                             </td>
