@@ -1,7 +1,16 @@
 <?php
-// 공통 사이드바
-// 모든 페이지에서 사용
+// 공통 사이드바 (대시보드 기준)
+$current_file = basename($_SERVER['PHP_SELF']);
+$current_dir = basename(dirname($_SERVER['PHP_SELF']));
+
+// 경로 자동 설정
+if (in_array($current_dir, ['settings', 'books', 'genres', 'orders'])) {
+    $base_path = '../';
+} else {
+    $base_path = './';
+}
 ?>
+
 <style>
 .sidebar {
             position: fixed;
@@ -33,6 +42,21 @@
             text-decoration: none;
             color: rgba(255, 255, 255, 0.8);
         }
+        
+        .sidebar .menu-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        .sidebar .menu-item.active {
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+        
+        .sidebar .menu-item i {
+            width: 20px;
+            margin-right: 10px;
+        }
 </style>
 
 <div class="sidebar">
@@ -60,7 +84,7 @@
             <span>장르 관리</span>
         </a>
         
-        <a href="orders/list.php" class="menu-item">
+        <a href="#" class="menu-item">
             <i class="fas fa-shopping-cart"></i>
             <span>주문 관리</span>
         </a>

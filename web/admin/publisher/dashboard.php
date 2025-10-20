@@ -31,23 +31,7 @@ $current_page = "dashboard";
             background-color: #f8f9fa;
         }
         
-        /* 사이드바 CSS는 includes/sidebar.php로 이동 */
-        
-        .sidebar .menu-item:hover {
-            background: rgba(255, 255, 255, 0.1);
-            color: white;
-        }
-        
-        .sidebar .menu-item.active {
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-        }
-        
-        .sidebar .menu-item i {
-            width: 20px;
-            margin-right: 10px;
-        }
-        
+        /* Sidebar CSS moved to includes/sidebar.php */
         .main-content {
             margin-left: 250px;
             padding: 30px;
