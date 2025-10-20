@@ -758,7 +758,7 @@ $current_page = "dashboard";
                 html += `
                     <div class="bestseller-card">
                         <div class="rank">${index + 1}</div>
-                        <img src="${book.cover_image || '../images/no-image.png'}" 
+                        <img src="${book.cover_image || 'https://via.placeholder.com/150x200?text=No+Image'}" 
                              alt="${book.book_title}" 
                              class="book-cover">
                         <div class="book-info">
