@@ -18,6 +18,8 @@ $query = "
         i.book_title,
         i.sale_price as amount,
         o.coupon_code,
+        o.coupon_discount,
+        o.discount_amount,
         o.cybercash_paid,
         o.cyberpoint_paid,
         o.total_paid
@@ -98,7 +100,9 @@ function get_order_status($status) {
                         <th>구매자</th>
                         <th>책 제목</th>
                         <th>결제방법</th>
-                        <th>금액</th>
+                        <th>원가</th>
+                        <th>할인</th>
+                        <th>결제액</th>
                         <th>상태</th>
                         <th>주문일시</th>
                         <th>상세</th>
@@ -116,16 +120,21 @@ function get_order_status($status) {
                             <td><?php echo htmlspecialchars($order['book_title']); ?></td>
                             <td>
                                 <?php if (!empty($order['coupon_code'])): ?>
-                                    🎟️ 쿠폰
+                                    🎟️ 쿠폰: <?php echo htmlspecialchars($order['coupon_code']); ?><br>
+                                    <small class="text-muted">(<?php echo number_format($order['coupon_discount']); ?>원 할인)</small>
                                 <?php elseif ($order['cybercash_paid'] > 0): ?>
-                                    💳 사이버캐시
+                                    💳 사이버캐시<br>
+                                    <small class="text-muted">(<?php echo number_format($order['cybercash_paid']); ?>원)</small>
                                 <?php elseif ($order['cyberpoint_paid'] > 0): ?>
-                                    🎫 사이버포인트
+                                    🎫 사이버포인트<br>
+                                    <small class="text-muted">(<?php echo number_format($order['cyberpoint_paid']); ?>원)</small>
                                 <?php else: ?>
                                     💰 일반결제
                                 <?php endif; ?>
                             </td>
-                            <td>₩<?php echo number_format($order['total_paid']); ?></td>
+                            <td>₩<?php echo number_format($order['amount']); ?></td>
+                            <td class="text-danger">-₩<?php echo number_format($order['discount_amount']); ?></td>
+                            <td class="fw-bold text-primary">₩<?php echo number_format($order['total_paid']); ?></td>
                             <td>
                                 <?php 
                                 $status = get_order_status($order['order_status']);
