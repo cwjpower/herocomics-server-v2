@@ -277,7 +277,7 @@ $current_page = "dashboard";
             margin-top: 30px;
         }
         
-        .action-btn {
+        .quick-action-link {
             background: white;
             border-radius: 12px;
             padding: 20px;
@@ -290,19 +290,19 @@ $current_page = "dashboard";
             color: #2c3e50;
         }
         
-        .action-btn:hover {
+        .quick-action-link:hover {
             transform: translateY(-5px);
             box-shadow: 0 4px 15px rgba(0,0,0,0.15);
             color: #667eea;
         }
         
-        .action-btn i {
+        .quick-action-link i {
             font-size: 32px;
             margin-bottom: 10px;
             color: #667eea;
         }
         
-        .action-btn .label {
+        .quick-action-link .label {
             font-weight: 500;
         }
         
@@ -553,22 +553,22 @@ $current_page = "dashboard";
             <div class="col-md-4">
                 <h3 class="mb-3">⚡ 빠른 액션</h3>
                 <div class="quick-actions">
-                    <a href="books/book_upload.php" class="action-btn mb-3">
+                    <a href="books/book_upload.php" class="quick-action-link mb-3">
                         <i class="fas fa-plus-circle"></i>
                         <div class="label">새 책 등록</div>
                     </a>
                     
-                    <a href="books/list.php" class="action-btn mb-3">
+                    <a href="books/list.php" class="quick-action-link mb-3">
                         <i class="fas fa-list"></i>
                         <div class="label">책 목록 관리</div>
                     </a>
                     
-                    <a href="orders/list.php" class="action-btn mb-3" style="text-decoration: none; display: block;">
+                    <a href="orders/list.php" class="quick-action-link mb-3">
                         <i class="fas fa-shopping-cart"></i>
                         <div class="label">주문 관리</div>
                     </a>
                     
-                    <a href="sales/dashboard.php" class="action-btn mb-3" style="text-decoration: none; display: block;">
+                    <a href="sales/dashboard.php" class="quick-action-link mb-3">
                         <i class="fas fa-won-sign"></i>
                         <div class="label">매출/정산</div>
                     </a>
