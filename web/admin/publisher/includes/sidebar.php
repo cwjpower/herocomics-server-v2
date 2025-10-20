@@ -93,7 +93,7 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
             </a>
         </li>
         <li>
-            <a href="<?php echo $base_path; ?>genres/list.php" class="<?php echo $current_dir == 'genres' ? 'active' : ''; ?>">
+            <a href="<?php echo $base_path; ?>genres/index.php" class="<?php echo $current_dir == 'genres' ? 'active' : ''; ?>">
                 <i class="fas fa-tags"></i>
                 <span>장르 관리</span>
             </a>
