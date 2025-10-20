@@ -1,4 +1,7 @@
 <?php
+<?php
+session_start();
+require_once 'auth_check.php';
 require_once '../wps-config.php';
 require_once '../wps-settings.php';
 
