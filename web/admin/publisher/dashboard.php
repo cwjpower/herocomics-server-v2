@@ -605,7 +605,7 @@ $current_page = "dashboard";
                             <span class="badge bg-primary">${group.book_count}권</span>
                         </div>
                         <div class="books-preview" style="overflow-x: auto; white-space: nowrap; padding: 10px 0; max-width: 400px;">
-                            ${group.books.map(book => `
+                            ${(group.books || []).map(book => `
                                 <img src="${book.cover_image}" 
                                      alt="${book.book_title}" 
                                      title="${book.title}"
