@@ -596,14 +596,25 @@ $current_page = "dashboard";
         .then(data => {
             const container = document.getElementById("seriesGroupsList");
             if (data.success && data.seriesGroups && data.seriesGroups.length > 0) {
-                container.innerHTML = '<p class="text-center">시리즈 그룹 로딩 중...</p>';
+                let html = '';
+                data.seriesGroups.forEach(group => {
+                    html += `
+                        <div class="series-group-card">
+                            <div class="series-header">
+                                <h5>📚 ${group.series_name || '시리즈'}</h5>
+                                <span class="badge bg-primary">${group.volume_count || 0}권</span>
+                            </div>
+                        </div>
+                    `;
+                });
+                container.innerHTML = html;
             } else {
                 container.innerHTML = '<div class="text-center text-muted py-4">등록된 시리즈가 없습니다</div>';
             }
         })
         .catch(error => {
             console.error('시리즈 그룹 로드 실패:', error);
-            document.getElementById("seriesGroupsList").innerHTML = '<div class="text-center text-danger py-4">시리즈 로드 실패</div>';
+            document.getElementById("seriesGroupsList").innerHTML = '<div class="text-center text-danger py-4">데이터를 불러올 수 없습니다</div>';
         });
 
                 const response = await fetch('dashboard_api.php');
