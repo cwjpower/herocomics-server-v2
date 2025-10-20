@@ -599,7 +599,7 @@ $current_page = "dashboard";
                 let html = '';
                 data.seriesGroups.forEach(group => {
                     html += `
-                        <div class="series-group-card">
+                        <div class="series-group-card" onclick="location.href='series/detail.php?series_name=' + encodeURIComponent('${group.series_name}')" style="cursor: pointer;">
                             <div class="series-header">
                                 <h5>📚 ${group.series_name || '시리즈'}</h5>
                                 <span class="badge bg-primary">${group.volume_count || 0}권</span>
