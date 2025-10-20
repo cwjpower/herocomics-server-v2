@@ -591,37 +591,19 @@ $current_page = "dashboard";
         async function loadDashboardData() {
             try {
     // 시리즈 그룹 데이터 로드
-
-    // 시리즈 그룹 데이터 로드
     fetch("dashboard_api.php")
         .then(response => response.json())
         .then(data => {
             const container = document.getElementById("seriesGroupsList");
             if (data.success && data.seriesGroups && data.seriesGroups.length > 0) {
-                container.innerHTML = (data.seriesGroups || []).map(group => {
-                    <div class="series-group-card" onclick="location.href='books/list.php?series=${encodeURIComponent(group.series_name)}'" style="cursor: pointer;">
-                        <div class="series-header">
-                            <h4>📚 ${group.series_name}</h4>
-                            <span class="badge bg-primary">${group.book_count}권</span>
-                        </div>
-                        <div class="books-preview" style="overflow-x: auto; white-space: nowrap; padding: 10px 0; max-width: 400px;">
-                            ${(group.books || []).map(book => `
-                                <img src="${book.cover_image}" 
-                                     alt="${book.book_title}" 
-                                     title="${book.title}"
-                                     onerror="this.src='/admin/img/no-image.jpg'"
-                                     style="width: 60px; height: 90px; object-fit: cover; border-radius: 8px; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block;">
-                            `).join('')}
-                        </div>
-                    </div>
-                `).join("");
+                container.innerHTML = '<p class="text-center">시리즈 그룹 로딩 중...</p>';
             } else {
-                container.innerHTML = "<p class='text-center text-muted'>등록된 시리즈가 없습니다.</p>";
+                container.innerHTML = '<div class="text-center text-muted py-4">등록된 시리즈가 없습니다</div>';
             }
         })
         .catch(error => {
-            console.error("시리즈 그룹 로드 실패:", error);
-            document.getElementById("seriesGroupsList").innerHTML = "<p class='text-center text-danger'>데이터를 불러올 수 없습니다.</p>";
+            console.error('시리즈 그룹 로드 실패:', error);
+            document.getElementById("seriesGroupsList").innerHTML = '<div class="text-center text-danger py-4">시리즈 로드 실패</div>';
         });
 
                 const response = await fetch('dashboard_api.php');
