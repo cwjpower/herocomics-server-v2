@@ -602,7 +602,7 @@ $current_page = "dashboard";
                         <div class="books-preview" style="overflow-x: auto; white-space: nowrap; padding: 10px 0; max-width: 400px;">
                             ${group.books.map(book => `
                                 <img src="${book.cover_image}" 
-                                     alt="${book.title}" 
+                                     alt="${book.book_title}" 
                                      title="${book.title}"
                                      onerror="this.src='/admin/img/no-image.jpg'"
                                      style="width: 60px; height: 90px; object-fit: cover; border-radius: 8px; margin-right: 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: inline-block;">
@@ -759,10 +759,10 @@ $current_page = "dashboard";
                     <div class="bestseller-card">
                         <div class="rank">${index + 1}</div>
                         <img src="${book.cover_image || '../images/no-image.png'}" 
-                             alt="${book.title}" 
+                             alt="${book.book_title}" 
                              class="book-cover">
                         <div class="book-info">
-                            <div class="book-title">${book.title}</div>
+                            <div class="book-title">${book.book_title}</div>
                             <div class="sales-count">판매량: ${book.sales_count}권</div>
                         </div>
                     </div>
