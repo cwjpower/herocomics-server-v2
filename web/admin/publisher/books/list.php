@@ -1,7 +1,7 @@
 <?php
 $page_title = '책 관리';
 $current_page = 'books';
-require_once '../layout/modern_header.php';
+require_once '../layout/header.php';
 require_once '../../conf/db.php';
 
 $publisher_id = $_SESSION['publisher_id'] ?? 1;
@@ -741,4 +741,4 @@ $stats = $stats_stmt->fetch();
     <?php endif; ?>
 <?php endif; ?>
 
- <?php require_once '../layout/modern_footer.php'; ?>
+ <?php require_once '../layout/footer.php'; ?>

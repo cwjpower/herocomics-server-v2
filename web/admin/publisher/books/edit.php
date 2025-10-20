@@ -184,7 +184,7 @@ $page_title = '책 수정 - HeroComics 출판사 CMS';
 // 페이지 정보 설정
 $page_title = '책 수정';
 $current_page = 'books';
-require_once '../layout/modern_header.php';
+require_once '../layout/header.php';
 
 // 책 정보 조회
 $sql = "SELECT * FROM bt_books WHERE ID = :id AND publisher_id = :publisher_id";
@@ -428,4 +428,4 @@ $genres = $pdo->query($genres_sql)->fetchAll();
     });
 </script>
 
-<?php require_once '../layout/modern_footer.php'; ?>
+<?php require_once '../layout/footer.php'; ?>
