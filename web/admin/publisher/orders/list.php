@@ -7,6 +7,46 @@ if (!isset($_SESSION['publisher_id'])) {
 }
 $publisher_id = $_SESSION['publisher_id'];
 
+// 검색 조건
+$search = isset($_GET['search']) ? trim($_GET['search']) : '';
+$status_filter = isset($_GET['status']) ? intval($_GET['status']) : -1;
+$date_from = isset($_GET['date_from']) ? $_GET['date_from'] : '';
+$date_to = isset($_GET['date_to']) ? $_GET['date_to'] : '';
+
+// WHERE 조건 구성
+$where_conditions = ["b.publisher_id = ?"];
+$params = [$publisher_id];
+$param_types = 'i';
+
+if (!empty($search)) {
+    $where_conditions[] = "(o.order_id LIKE ? OR u.user_login LIKE ? OR i.book_title LIKE ?)";
+    $search_param = "%{$search}%";
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $params[] = $search_param;
+    $param_types .= 'sss';
+}
+
+if ($status_filter >= 0) {
+    $where_conditions[] = "o.order_status = ?";
+    $params[] = $status_filter;
+    $param_types .= 'i';
+}
+
+if (!empty($date_from)) {
+    $where_conditions[] = "DATE(o.created_dt) >= ?";
+    $params[] = $date_from;
+    $param_types .= 's';
+}
+
+if (!empty($date_to)) {
+    $where_conditions[] = "DATE(o.created_dt) <= ?";
+    $params[] = $date_to;
+    $param_types .= 's';
+}
+
+$where_clause = implode(' AND ', $where_conditions);
+
 // 주문 목록 조회
 $query = "
     SELECT 
@@ -27,13 +67,13 @@ $query = "
     INNER JOIN bt_order_item i ON o.order_id = i.order_id
     LEFT JOIN bt_users u ON o.user_id = u.ID
     LEFT JOIN bt_books b ON i.book_id = b.ID
-    WHERE b.publisher_id = ?
+    WHERE $where_clause
     ORDER BY o.created_dt DESC
     LIMIT 50
 ";
 
 $stmt = $wdb->prepare($query);
-$stmt->bind_param('i', $publisher_id);
+$stmt->bind_param($param_types, ...$params);
 $stmt->execute();
 $orders = $wdb->get_results($stmt);
 
@@ -62,17 +102,21 @@ function get_order_status($status) {
     <h1>🛒 주문 관리</h1>
     
     <!-- 필터 -->
+    <form method="GET" action="list.php">
     <div class="card mb-3">
         <div class="card-body">
             <div class="row">
                 <div class="col-md-3">
                     <label>날짜</label>
-                    <input type="date" class="form-control">
+                    <input type="date" class="form-control" name="date_from" value="<?php echo htmlspecialchars($date_from); ?>">
                 </div>
                 <div class="col-md-3">
                     <label>상태</label>
-                    <select class="form-control">
-                        <option>전체</option>
+                    <select class="form-control" name="status">
+                        <option value="-1">전체</option>
+                        <option value="1" <?php echo $status_filter == 1 ? 'selected' : ''; ?>>결제완료</option>
+                        <option value="2" <?php echo $status_filter == 2 ? 'selected' : ''; ?>>취소</option>
+                        <option value="3" <?php echo $status_filter == 3 ? 'selected' : ''; ?>>환불</option>
                         <option>결제완료</option>
                         <option>취소</option>
                         <option>환불</option>
@@ -80,15 +124,16 @@ function get_order_status($status) {
                 </div>
                 <div class="col-md-4">
                     <label>검색</label>
-                    <input type="text" class="form-control" placeholder="주문번호/구매자/책제목">
+                    <input type="text" class="form-control" name="search" placeholder="주문번호/구매자/책제목" value="<?php echo htmlspecialchars($search); ?>">
                 </div>
                 <div class="col-md-2">
                     <label>&nbsp;</label>
-                    <button class="btn btn-primary w-100">검색</button>
+                    <button type="submit" class="btn btn-primary w-100">검색</button>
                 </div>
             </div>
         </div>
     </div>
+    </form>
     
     <!-- 주문 목록 -->
     <div class="card">
