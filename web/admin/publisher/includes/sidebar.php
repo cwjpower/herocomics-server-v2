@@ -73,7 +73,10 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
 <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
 
 <div class="sidebar">
-<ul class="sidebar-menu">
+    <div style="padding: 20px; text-align: center; font-size: 20px; font-weight: bold; border-bottom: 1px solid rgba(255,255,255,0.3); margin-bottom: 20px;">
+        📚 HeroComics
+    </div>
+    <ul class="sidebar-menu">
         <li>
             <a href="<?php echo $base_path; ?>dashboard.php" class="<?php echo $current_file == 'dashboard.php' ? 'active' : ''; ?>">
                 <i class="fas fa-chart-line"></i>
