@@ -1,124 +1,95 @@
 <?php
-// 현재 페이지의 위치를 파악해서 base_path 자동 설정
-$current_file = basename($_SERVER['PHP_SELF']);
-$current_dir = basename(dirname($_SERVER['PHP_SELF']));
-
-// settings 폴더에 있으면 ../, 아니면 ./
-if ($current_dir == 'settings') {
-    $base_path = '../';
-} else {
-    $base_path = './';
-}
+// 공통 사이드바
+// 모든 페이지에서 사용
 ?>
-<!-- 사이드바 블록 -->
-<div class="sidebar">
-    <div class="sidebar-header">
-        📖 HeroComics
-    </div>
-    <ul class="sidebar-menu">
-        <li>
-            <a href="<?php echo $base_path; ?>dashboard.php" class="<?php echo $current_file == 'dashboard.php' ? 'active' : ''; ?>">
-                📊 대시보드
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo $base_path; ?>books/list.php" class="<?php echo $current_dir == 'books' && strpos($current_file, 'list') !== false ? 'active' : ''; ?>">
-                📚 책 관리
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo $base_path; ?>books/upload.php" class="<?php echo $current_dir == 'books' && strpos($current_file, 'upload') !== false ? 'active' : ''; ?>">
-                📖 책 추가
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo $base_path; ?>genres/list.php" class="<?php echo $current_dir == 'genres' ? 'active' : ''; ?>">
-                🏷️ 장르 관리
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo $base_path; ?>orders/list.php" class="<?php echo $current_dir == 'orders' ? 'active' : ''; ?>">
-                🛒 주문 관리
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo $base_path; ?>sales/dashboard.php" class="<?php echo $current_dir == 'sales' ? 'active' : ''; ?>">
-                💰 매출/정산
-            </a>
-        </li>
-        <li>
-            <a href="<?php echo ($current_dir == 'settings') ? 'profile.php' : $base_path . 'settings/profile.php'; ?>" class="<?php echo $current_dir == 'settings' ? 'active' : ''; ?>">
-                ⚙️ 설정
-            </a>
-        </li>
-    </ul>
-</div>
-
 <style>
-/* 사이드바 스타일 - 보라색 그라디언트 */
 .sidebar {
-    width: 240px;
-    background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    min-height: 100vh;
-    padding: 0;
-    position: fixed;
-    left: 0;
-    top: 0;
-    z-index: 1000;
-    box-shadow: 2px 0 10px rgba(0,0,0,0.1);
-}
-
-.sidebar-header {
-    padding: 30px 20px;
-    font-size: 22px;
-    font-weight: bold;
-    color: white;
-    background: rgba(255,255,255,0.1);
-    border-bottom: 1px solid rgba(255,255,255,0.2);
-    text-align: center;
-}
-
-.sidebar-menu {
-    list-style: none;
-    padding: 20px 0;
-    margin: 0;
-}
-
-.sidebar-menu li {
-    margin-bottom: 2px;
-}
-
-.sidebar-menu a {
-    display: flex;
-    align-items: center;
-    padding: 15px 20px;
-    color: rgba(255,255,255,0.9);
-    text-decoration: none;
-    transition: all 0.3s ease;
-    font-size: 15px;
-    border-left: 3px solid transparent;
-}
-
-.sidebar-menu a:hover {
-    background: rgba(255,255,255,0.15);
-    color: white;
-    border-left-color: rgba(255,255,255,0.5);
-}
-
-.sidebar-menu a.active {
-    background: rgba(255,255,255,0.2);
-    color: white;
-    border-left-color: #fff;
-    font-weight: 600;
-}
-
-body {
-    margin: 0;
-    padding: 0;
-}
-
-.main-content {
-    margin-left: 240px;
-}
+            position: fixed;
+            top: 0;
+            left: 0;
+            height: 100vh;
+            width: 250px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px;
+            color: white;
+            overflow-y: auto;
+        }
+        
+        .sidebar .logo {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 30px;
+            text-align: center;
+        }
+        
+        .sidebar .menu-item {
+            padding: 12px 15px;
+            margin-bottom: 5px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            text-decoration: none;
+            color: rgba(255, 255, 255, 0.8);
+        }
 </style>
+
+<div class="sidebar">
+        <div class="logo">
+            <i class="fas fa-book-open"></i> HeroComics
+        </div>
+        
+        <a href="dashboard.php" class="menu-item active">
+            <i class="fas fa-chart-line"></i>
+            <span>대시보드</span>
+        </a>
+        
+        <a href="books/list.php" class="menu-item">
+            <i class="fas fa-book"></i>
+            <span>책 관리</span>
+        </a>
+        
+        <a href="books/book_upload.php" class="menu-item">
+            <i class="fas fa-plus-circle"></i>
+            <span>책 추가</span>
+        </a>
+        
+        <a href="genres/" class="menu-item">
+            <i class="fas fa-tags"></i>
+            <span>장르 관리</span>
+        </a>
+        
+        <a href="orders/list.php" class="menu-item">
+            <i class="fas fa-shopping-cart"></i>
+            <span>주문 관리</span>
+        </a>
+        
+        <a href="#" class="menu-item">
+            <i class="fas fa-dollar-sign"></i>
+            <span>매출/정산</span>
+        </a>
+        
+        <a href="settings/profile.php" class="menu-item">
+            <i class="fas fa-cog"></i>
+            <span>설정</span>
+        </a>
+    </div>
+    
+    <!-- 메인 컨텐츠 -->
+    <div class="main-content">
+        <h1 class="mb-4">📊 대시보드</h1>
+        
+        <!-- 통계 카드 -->
+        <div class="row" id="statsCards">
+            <div class="col-md-3 mb-4">
+                <div class="stats-card">
+                    <div class="icon" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                        <i class="fas fa-book"></i>
+                    </div>
+                    <div class="label">총 책 권수</div>
+                    <div class="value" id="totalBooks">-</div>
+                    <div class="change positive" id="booksChange">
+                        <i class="fas fa-arrow-up"></i> 로딩 중...
+                    </div>
+                </div>
