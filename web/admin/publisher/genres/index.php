@@ -1,7 +1,7 @@
 <?php
 $page_title = '장르 관리 - HeroComics 출판사 CMS';
 $current_page = 'genres';
-require_once '../layout/header.php';
+require_once '../layout/modern_header.php';
 require_once '../../conf/db.php';
 
 // 장르 목록 가져오기
@@ -146,4 +146,4 @@ function hideAddForm() {
 }
 </script>
 
-<?php require_once '../layout/footer.php'; ?>
+<?php require_once '../layout/modern_footer.php'; ?>
