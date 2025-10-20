@@ -758,7 +758,7 @@ $current_page = "dashboard";
                         <div class="rank">${index + 1}</div>
                         <img src="${(book.cover_image && book.cover_image !== 'null') ? book.cover_image : 'https://via.placeholder.com/150x200?text=No+Image'}" 
                              alt="${book.book_title}" 
-                             class="book-cover">
+                             class="book-cover" onerror="this.src='https://via.placeholder.com/150x200?text=No+Image'">
                         <div class="book-info">
                             <div class="book-title">${book.book_title}</div>
                             <div class="sales-count">판매량: ${book.sales_count}권</div>
