@@ -156,18 +156,6 @@ function get_order_status($status) {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-<script>
-function cancelOrder(orderId) {
-    if (confirm('정말 주문을 취소하시겠습니까?')) {
-        alert('주문 취소 기능은 추후 구현됩니다.');
-    }
-}
 
-function refundOrder(orderId) {
-    if (confirm('정말 환불 처리하시겠습니까?')) {
-        alert('환불 처리 기능은 추후 구현됩니다.');
-    }
-}
-</script>
 </body>
 </html>
