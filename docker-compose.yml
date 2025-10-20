@@ -1,0 +1,52 @@
+# docker-compose.yml  (no 'version:' and no 'container_name:' — 충돌 방지)
+# docker-compose.yml
+services:
+  mariadb:
+    image: mariadb:11
+    container_name: herocomics-mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: rootpass
+      MARIADB_DATABASE: herocomics
+      MARIADB_USER: hero
+      MARIADB_PASSWORD: hero1234
+    volumes:
+      - ./db:/var/lib/mysql
+    ports:
+      - "33060:3306"
+    networks:
+      - herocomics-network
+    restart: unless-stopped
+
+  php:
+    image: php:8.2-fpm
+    container_name: herocomics-php
+    depends_on:
+      - mariadb
+    volumes:
+      - ./web:/var/www/html
+    networks:
+      - herocomics-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+      docker-php-ext-install mysqli pdo pdo_mysql &&
+      php-fpm
+      "
+
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: herocomics-nginx
+    depends_on:
+      - php
+    volumes:
+      - ./web:/var/www/html:ro
+      - ./nginx/conf.d:/etc/nginx/conf.d
+    ports:
+      - "8081:80"
+    networks:
+      - herocomics-network
+    restart: unless-stopped
+
+networks:
+  herocomics-network:
+    driver: bridge

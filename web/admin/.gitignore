@@ -1,0 +1,44 @@
+# phpstorm project files
+.idea
+
+# composer itself is not needed
+composer.phar
+
+# Mac DS_Store Files
+.DS_Store
+
+# phpunit itself is not needed
+phpunit.phar
+# local phpunit config
+/phpunit.xml
+
+# wps settings
+/web/wps-config.php
+/web/wps-settings.php
+/web/wps-vars.php
+
+includes/images
+upload/
+index.html
+phpinfo.php
+index.php.back
+/googlec1fe97ee9edfa8a8.html
+/mobile/
+
+/apis/
+/admin/fonts/
+/admin/images/
+/admin/_sample01.html
+/admin/_sample031.html
+/admin/_sample03.html
+/admin/_sample02.html
+/includes/css/
+/includes/fonts/
+/naver2b4cea3e29c230c9aff8435b17625055.html
+
+!/includes/css/
+
+# allow apis/pages
+!/apis/
+!/apis/pages/
+!/apis/pages/upload.php

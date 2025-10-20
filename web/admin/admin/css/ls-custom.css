@@ -1,0 +1,32 @@
+.skin-blue .sidebar-menu>li.header { color: #fff; font-size: 15px; }
+.ls-table td.item-label { font-weight: bold; background-color: #d2d6de; color: #222d32; text-align: center; }
+.ls-user-logs { max-height: 800px; overflow-y: auto; } /* 회원 상세 로그 박스 */
+.pagination a { cursor: pointer; }
+#tree { min-height: 200px; }
+.ls-book-category { height: 250px; overflow-y: auto; cursor: pointer; }
+.pd-10 { padding: 10px; }
+
+
+/** 테이블 영역  td > vertical **/
+.table > tbody > tr > td {
+    vertical-align: middle !important;
+}
+
+
+.book-tag {
+    font-size: 14px;
+    line-height: 13px;
+    padding: 2px 3px 3px 3px;
+    color:white;
+    text-align:center;
+    font-weight:bold;
+}
+.book-tag.tag-marvel {
+    background-color: #ea2328;
+}
+.book-tag.tag-dc {
+    background-color: #0376f2;
+}
+.book-tag.tag-image {
+    background-color: #626262;
+}

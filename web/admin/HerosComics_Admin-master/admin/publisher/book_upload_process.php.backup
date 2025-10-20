@@ -1,0 +1,266 @@
+<?php
+require_once '../../wps-config.php';
+
+if (!isset($_SESSION['login']['userid']) || $_SESSION['login']['user_level'] != 7) {
+    die('접근 권한이 없습니다.');
+}
+
+$user_id = $_SESSION['login']['userid'];
+$publisher_id = $_SESSION['login']['publisher_id'];
+
+// 폼 데이터 받기
+$book_title = $_POST['book_title'] ?? '';
+$author = $_POST['author'] ?? '';
+$isbn = $_POST['isbn'] ?? '';
+$normal_price = (int)($_POST['normal_price'] ?? 0);
+$discount_rate = (int)($_POST['discount_rate'] ?? 0);
+$is_free = $_POST['is_free'] ?? 'N';
+$description = $_POST['description'] ?? '';
+
+// 판매가 계산
+$sale_price = $normal_price * (100 - $discount_rate) / 100;
+
+// 업로드 디렉토리 (웹 서버 안에!)
+$upload_base = $_SERVER['DOCUMENT_ROOT'] . '/uploads/books/' . $publisher_id . '/';
+if (!is_dir($upload_base)) {
+    mkdir($upload_base, 0755, true);
+}
+
+// 에러 처리를 위한 변수
+$errors = [];
+
+// 1. 표지 이미지 업로드
+$cover_img = '';
+if (isset($_FILES['cover_img']) && $_FILES['cover_img']['error'] == 0) {
+    $allowed_types = ['image/jpeg', 'image/jpg', 'image/png', 'image/gif'];
+    $file_type = $_FILES['cover_img']['type'];
+    
+    if (in_array($file_type, $allowed_types)) {
+        $cover_ext = pathinfo($_FILES['cover_img']['name'], PATHINFO_EXTENSION);
+        $cover_name = uniqid('cover_') . '.' . $cover_ext;
+        $cover_path = $upload_base . $cover_name;
+        
+        if (move_uploaded_file($_FILES['cover_img']['tmp_name'], $cover_path)) {
+            $cover_img = '/uploads/books/' . $publisher_id . '/' . $cover_name;
+        } else {
+            $errors[] = '표지 이미지 업로드 실패';
+        }
+    } else {
+        $errors[] = '표지 이미지는 JPG, PNG, GIF 형식만 가능합니다.';
+    }
+}
+
+// 2. ZIP 파일 업로드 및 검증
+$epub_path = '';
+$epub_name = '';
+
+if (isset($_FILES['book_zip']) && $_FILES['book_zip']['error'] == 0) {
+    // 파일 크기 체크 (500MB 제한)
+    if ($_FILES['book_zip']['size'] > 500 * 1024 * 1024) {
+        $errors[] = 'ZIP 파일 크기는 500MB 이하여야 합니다.';
+    } else {
+        $zip_name = uniqid('book_') . '.zip';
+        $zip_path = $upload_base . $zip_name;
+        
+        if (move_uploaded_file($_FILES['book_zip']['tmp_name'], $zip_path)) {
+            // ZIP 파일 검증 (frame.avf 존재 확인)
+            $zip = new ZipArchive;
+            if ($zip->open($zip_path) === TRUE) {
+                $has_avf = false;
+                $has_images = false;
+                
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $filename = $zip->getNameIndex($i);
+                    
+                    // frame.avf 확인
+                    if (strtolower($filename) == 'frame.avf') {
+                        $has_avf = true;
+                    }
+                    
+                    // 이미지 파일 확인
+                    if (preg_match('/\.(jpg|jpeg|png)$/i', $filename)) {
+                        $has_images = true;
+                    }
+                }
+                $zip->close();
+                
+                if (!$has_avf) {
+                    $errors[] = 'ZIP 파일 안에 frame.avf 파일이 없습니다!';
+                    unlink($zip_path);
+                } elseif (!$has_images) {
+                    $errors[] = 'ZIP 파일 안에 이미지 파일이 없습니다!';
+                    unlink($zip_path);
+                } else {
+                    $epub_path = '/uploads/books/' . $publisher_id . '/' . $zip_name;
+                    $epub_name = $book_title . '.zip';
+                }
+            } else {
+                $errors[] = 'ZIP 파일을 열 수 없습니다.';
+                unlink($zip_path);
+            }
+        } else {
+            $errors[] = 'ZIP 파일 업로드 실패';
+        }
+    }
+}
+
+// 에러가 있으면 중단
+if (!empty($errors)) {
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>업로드 실패</title>';
+    echo '<link rel="stylesheet" href="../../css/bootstrap.min.css"></head><body>';
+    echo '<div class="container" style="max-width:800px;margin:50px auto;padding:20px;">';
+    echo '<h2 style="color:#dc3545;">❌ 업로드 실패</h2>';
+    echo '<div class="alert alert-danger">';
+    echo '<ul style="margin:0;padding-left:20px;">';
+    foreach ($errors as $error) {
+        echo '<li>' . htmlspecialchars($error) . '</li>';
+    }
+    echo '</ul></div>';
+    echo '<a href="book_upload.php" class="btn btn-primary">다시 시도</a>';
+    echo '</div></body></html>';
+    exit;
+}
+
+// 3. DB에 저장
+global $wdb;
+
+// 출판사 이름 가져오기
+$pub_query = "SELECT publisher_name FROM bt_publishers WHERE publisher_id = ?";
+$pub_stmt = $wdb->prepare($pub_query);
+$pub_stmt->bind_param("i", $publisher_id);
+$pub_stmt->execute();
+$pub_result = $pub_stmt->get_result();
+$publisher_name = $pub_result->fetch_assoc()['publisher_name'] ?? 'Unknown';
+$pub_stmt->close();
+
+$query = "INSERT INTO bt_books 
+        (book_title, author, publisher, isbn, normal_price, discount_rate, sale_price, 
+         cover_img, epub_path, epub_name, is_free, upload_type, book_status, 
+         created_dt, user_id, publisher_id)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'publisher', 1, NOW(), ?, ?)";
+
+$stmt = $wdb->prepare($query);
+$stmt->bind_param("ssssiisssssii", 
+    $book_title, 
+    $author, 
+    $publisher_name,
+    $isbn, 
+    $normal_price, 
+    $discount_rate, 
+    $sale_price, 
+    $cover_img, 
+    $epub_path, 
+    $epub_name, 
+    $is_free, 
+    $user_id, 
+    $publisher_id
+);
+
+if ($stmt->execute()) {
+    $book_id = $stmt->insert_id;
+    ?>
+    <!DOCTYPE html>
+    <html>
+    <head>
+        <meta charset="UTF-8">
+        <title>업로드 성공</title>
+        <link rel="stylesheet" href="../../css/bootstrap.min.css">
+        <link rel="stylesheet" href="../../css/font-awesome.min.css">
+        <style>
+            body { 
+                font-family: 'Noto Sans KR', sans-serif; 
+                background: #f4f6f9;
+                padding: 20px;
+            }
+            .container {
+                max-width: 700px;
+                margin: 50px auto;
+                background: white;
+                padding: 40px;
+                border-radius: 8px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                text-align: center;
+            }
+            .success-icon {
+                font-size: 64px;
+                color: #28a745;
+                margin-bottom: 20px;
+            }
+            h2 {
+                color: #28a745;
+                margin-bottom: 20px;
+            }
+            .book-info {
+                background: #f8f9fa;
+                padding: 20px;
+                border-radius: 4px;
+                margin: 30px 0;
+                text-align: left;
+            }
+            .book-info p {
+                margin: 10px 0;
+                font-size: 14px;
+            }
+            .btn-group {
+                display: flex;
+                gap: 10px;
+                margin-top: 30px;
+            }
+            .btn {
+                flex: 1;
+                padding: 15px;
+                text-decoration: none;
+                border-radius: 4px;
+                font-weight: bold;
+            }
+            .btn-primary {
+                background: #007bff;
+                color: white;
+            }
+            .btn-success {
+                background: #28a745;
+                color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="container">
+            <div class="success-icon">
+                <i class="fa fa-check-circle"></i>
+            </div>
+            <h2>✅ 책이 성공적으로 업로드되었습니다!</h2>
+            
+            <div class="book-info">
+                <p><strong>책 제목:</strong> <?= htmlspecialchars($book_title) ?></p>
+                <p><strong>저자:</strong> <?= htmlspecialchars($author) ?></p>
+                <p><strong>정가:</strong> <?= number_format($normal_price) ?>원</p>
+                <p><strong>할인율:</strong> <?= $discount_rate ?>%</p>
+                <p><strong>판매가:</strong> <?= number_format($sale_price) ?>원</p>
+                <p><strong>무료 책:</strong> <?= $is_free == 'Y' ? '예' : '아니오' ?></p>
+                <p><strong>책 ID:</strong> #<?= $book_id ?></p>
+            </div>
+
+            <div class="btn-group">
+                <a href="book_list.php" class="btn btn-primary">
+                    <i class="fa fa-list"></i> 책 목록으로
+                </a>
+                <a href="book_upload.php" class="btn btn-success">
+                    <i class="fa fa-plus"></i> 추가 업로드
+                </a>
+            </div>
+        </div>
+    </body>
+    </html>
+    <?php
+} else {
+    echo '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>업로드 실패</title>';
+    echo '<link rel="stylesheet" href="../../css/bootstrap.min.css"></head><body>';
+    echo '<div class="container" style="max-width:800px;margin:50px auto;padding:20px;">';
+    echo '<h2 style="color:#dc3545;">❌ DB 저장 실패</h2>';
+    echo '<div class="alert alert-danger">' . htmlspecialchars($wdb->error) . '</div>';
+    echo '<a href="book_upload.php" class="btn btn-primary">다시 시도</a>';
+    echo '</div></body></html>';
+}
+
+$stmt->close();
+?>

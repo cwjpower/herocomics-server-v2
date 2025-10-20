@@ -1,0 +1,222 @@
+<?php
+require_once '../../wps-config.php';
+
+if (!isset($_SESSION['login']['userid']) || $_SESSION['login']['user_level'] != 7) {
+    header('Location: ../login.php');
+    exit;
+}
+
+$publisher_id = $_SESSION['login']['publisher_id'];
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>책 업로드 - Hero Comics</title>
+    <link rel="stylesheet" href="../../css/bootstrap.min.css">
+    <link rel="stylesheet" href="../../css/font-awesome.min.css">
+    <style>
+        body { 
+            font-family: 'Noto Sans KR', sans-serif; 
+            background: #f4f6f9;
+            padding: 20px;
+        }
+        .container { 
+            max-width: 900px; 
+            margin: 0 auto; 
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 3px solid #007bff;
+        }
+        .form-group { 
+            margin-bottom: 25px; 
+        }
+        label { 
+            display: block; 
+            font-weight: bold; 
+            margin-bottom: 8px;
+            color: #333;
+        }
+        label .required {
+            color: #dc3545;
+        }
+        input[type="text"], 
+        input[type="number"], 
+        select, 
+        textarea { 
+            width: 100%; 
+            padding: 12px; 
+            border: 1px solid #ddd; 
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        input[type="file"] { 
+            padding: 10px;
+            border: 2px dashed #ddd;
+            border-radius: 4px;
+            width: 100%;
+        }
+        .help-text {
+            font-size: 12px;
+            color: #666;
+            margin-top: 5px;
+        }
+        .info-box { 
+            background: #e7f3ff; 
+            padding: 20px; 
+            border-left: 4px solid #007bff; 
+            margin-bottom: 30px;
+            border-radius: 4px;
+        }
+        .info-box h3 {
+            margin-top: 0;
+            color: #007bff;
+            font-size: 16px;
+        }
+        .info-box ul {
+            margin: 10px 0 0 20px;
+            padding: 0;
+        }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-top: 30px;
+        }
+        button { 
+            flex: 1;
+            padding: 15px 30px; 
+            border: none; 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 16px;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+        .btn-primary {
+            background: #007bff;
+            color: white;
+        }
+        .btn-primary:hover { 
+            background: #0056b3; 
+        }
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        .btn-secondary:hover {
+            background: #545b62;
+        }
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <h1>📚 새 책 업로드</h1>
+        <div class="subtitle">
+            출판사: <strong><?= htmlspecialchars($_SESSION['login']['display_name']) ?></strong>
+        </div>
+        
+        <div class="info-box">
+            <h3>📦 ZIP 파일 구조 안내</h3>
+            <ul>
+                <li><strong>frame.avf</strong> - 필수 (페이지/프레임 정보 JSON 파일)</li>
+                <li><strong>page001.jpg, page002.jpg, ...</strong> - 필수 (페이지 이미지들)</li>
+                <li>표지 이미지는 별도 업로드</li>
+            </ul>
+        </div>
+
+        <form action="book_upload_process.php" method="POST" enctype="multipart/form-data" onsubmit="return validateForm()">
+            
+            <div class="form-group">
+                <label>책 제목 <span class="required">*</span></label>
+                <input type="text" name="book_title" required placeholder="예: Spider-Man Vol.1">
+            </div>
+
+            <div class="form-group">
+                <label>저자 <span class="required">*</span></label>
+                <input type="text" name="author" required placeholder="예: Stan Lee">
+            </div>
+
+            <div class="form-group">
+                <label>ISBN</label>
+                <input type="text" name="isbn" placeholder="예: 978-1234567890">
+                <div class="help-text">선택사항입니다</div>
+            </div>
+
+            <div class="form-group">
+                <label>정가 <span class="required">*</span></label>
+                <input type="number" name="normal_price" required placeholder="10000" min="0">
+                <div class="help-text">원(₩) 단위로 입력</div>
+            </div>
+
+            <div class="form-group">
+                <label>할인율 (%)</label>
+                <input type="number" name="discount_rate" value="0" min="0" max="100">
+                <div class="help-text">0~100 사이의 숫자</div>
+            </div>
+
+            <div class="form-group">
+                <label>무료 책</label>
+                <select name="is_free">
+                    <option value="N">아니오</option>
+                    <option value="Y">예 (무료)</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>책 소개</label>
+                <textarea name="description" rows="4" placeholder="책에 대한 간단한 소개를 입력하세요"></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>표지 이미지 <span class="required">*</span></label>
+                <input type="file" name="cover_img" accept="image/*" required>
+                <div class="help-text">JPG, PNG 형식 (권장: 800x1200px)</div>
+            </div>
+
+            <div class="form-group">
+                <label>책 파일 (ZIP) <span class="required">*</span></label>
+                <input type="file" name="book_zip" accept=".zip" required>
+                <div class="help-text">frame.avf 파일과 페이지 이미지들이 포함된 ZIP 파일</div>
+            </div>
+
+            <div class="btn-group">
+                <button type="button" class="btn-secondary" onclick="history.back()">
+                    <i class="fa fa-arrow-left"></i> 취소
+                </button>
+                <button type="submit" class="btn-primary">
+                    <i class="fa fa-upload"></i> 업로드
+                </button>
+            </div>
+
+        </form>
+    </div>
+
+    <script>
+    function validateForm() {
+        const zipFile = document.querySelector('input[name="book_zip"]').files[0];
+        if (zipFile) {
+            const fileSize = zipFile.size / 1024 / 1024; // MB
+            if (fileSize > 500) {
+                alert('ZIP 파일 크기는 500MB 이하여야 합니다.');
+                return false;
+            }
+        }
+        return true;
+    }
+    </script>
+
+</body>
+</html>

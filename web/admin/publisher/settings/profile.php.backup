@@ -1,0 +1,317 @@
+<?php
+require_once '../../wps-config.php';
+require_once '../../wps-settings.php';
+
+if (!isset($_SESSION['publisher_id'])) {
+    header('Location: ../login.php');
+    exit;
+}
+
+$publisher_id = $_SESSION['publisher_id'];
+
+if (!isset($wdb) || !is_object($wdb)) {
+    die("DB 연결 실패");
+}
+
+$query = "SELECT * FROM bt_publishers WHERE publisher_id = ?";
+$stmt = $wdb->prepare($query);
+if (!$stmt) {
+    die("쿼리 준비 실패: " . $wdb->error);
+}
+$stmt->bind_param('i', $publisher_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$publisher = $result->fetch_assoc();
+$stmt->close();
+
+if (!$publisher) {
+    $publisher = [
+        'publisher_code' => 'TEST',
+        'publisher_name' => '테스트 출판사',
+        'publisher_name_en' => '',
+        'contact_name' => '',
+        'contact_email' => '',
+        'contact_phone' => '',
+        'address' => ''
+    ];
+}
+
+$base_path = '../';
+?>
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>출판사 설정 - HeroComics</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            font-family: 'Noto Sans KR', -apple-system, BlinkMacSystemFont, sans-serif; 
+            background: #f5f7fa;
+        }
+        
+        .container { 
+            max-width: 1200px; 
+            margin: 0 auto; 
+            padding: 30px;
+        }
+        
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 30px;
+        }
+        
+        .page-title h1 {
+            font-size: 28px;
+            color: #2d3748;
+        }
+        
+        .page-icon {
+            font-size: 36px;
+        }
+        
+        .card {
+            background: white;
+            border-radius: 12px;
+            padding: 30px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+            margin-bottom: 20px;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .tab {
+            padding: 12px 24px;
+            text-decoration: none;
+            color: #718096;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.3s;
+            font-weight: 500;
+        }
+        
+        .tab:hover {
+            color: #667eea;
+        }
+        
+        .tab.active {
+            color: #667eea;
+            border-bottom-color: #667eea;
+        }
+        
+        .section-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #2d3748;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 2px solid #e2e8f0;
+        }
+        
+        .form-group { 
+            margin-bottom: 24px; 
+        }
+        
+        label { 
+            display: block; 
+            margin-bottom: 8px; 
+            font-weight: 500; 
+            color: #4a5568;
+            font-size: 14px;
+        }
+        
+        input[type="text"], 
+        input[type="email"], 
+        input[type="tel"], 
+        input[type="password"] {
+            width: 100%; 
+            padding: 12px 16px; 
+            border: 1px solid #e2e8f0; 
+            border-radius: 8px; 
+            font-size: 14px;
+            transition: all 0.3s;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        input[readonly] { 
+            background: #f7fafc;
+            color: #718096;
+        }
+        
+        .btn-group { 
+            margin-top: 30px; 
+            text-align: right; 
+        }
+        
+        .btn { 
+            padding: 12px 32px; 
+            border: none; 
+            border-radius: 8px; 
+            cursor: pointer; 
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+        
+        .btn-primary { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        
+        .btn-primary:hover { 
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+        
+        .btn-secondary { 
+            background: #48bb78;
+            color: white;
+            margin-left: 10px;
+        }
+        
+        .btn-secondary:hover { 
+            background: #38a169;
+            transform: translateY(-2px);
+        }
+        
+        .help-text { 
+            font-size: 12px; 
+            color: #a0aec0; 
+            margin-top: 5px; 
+        }
+    </style>
+</head>
+<body>
+    <?php 
+    // 사이드바 포함
+    include '../includes/sidebar.php'; 
+    
+    // 상단 헤더 포함
+    include '../includes/header.php';
+    ?>
+
+    <div class="main-content">
+        <div class="container">
+            <div class="page-title">
+                <span class="page-icon">⚙️</span>
+                <h1>출판사 설정</h1>
+            </div>
+
+            <!-- 탭 네비게이션 -->
+            <div class="tabs">
+                <a href="profile.php" class="tab active">기본정보</a>
+                <a href="account.php" class="tab">계좌정보</a>
+                <a href="<?php echo $base_path; ?>dashboard.php" class="tab">← 대시보드</a>
+            </div>
+
+            <!-- 기본정보 카드 -->
+            <div class="card">
+                <form method="POST" action="update.php">
+                    <input type="hidden" name="action" value="profile">
+                    
+                    <div class="section-title">📋 기본 정보</div>
+                    
+                    <div class="form-group">
+                        <label>출판사 코드</label>
+                        <input type="text" value="<?php echo htmlspecialchars($publisher['publisher_code'] ?? ''); ?>" readonly>
+                    </div>
+
+                    <div class="form-group">
+                        <label>출판사명 (한글) *</label>
+                        <input type="text" name="publisher_name" value="<?php echo htmlspecialchars($publisher['publisher_name'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>출판사명 (영문)</label>
+                        <input type="text" name="publisher_name_en" value="<?php echo htmlspecialchars($publisher['publisher_name_en'] ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>담당자명</label>
+                        <input type="text" name="contact_name" value="<?php echo htmlspecialchars($publisher['contact_name'] ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>이메일 *</label>
+                        <input type="email" name="contact_email" value="<?php echo htmlspecialchars($publisher['contact_email'] ?? ''); ?>" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>전화번호</label>
+                        <input type="tel" name="contact_phone" value="<?php echo htmlspecialchars($publisher['contact_phone'] ?? ''); ?>">
+                    </div>
+
+                    <div class="form-group">
+                        <label>주소</label>
+                        <input type="text" name="address" value="<?php echo htmlspecialchars($publisher['address'] ?? ''); ?>">
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-primary">💾 저장하기</button>
+                    </div>
+                </form>
+            </div>
+
+            <!-- 비밀번호 변경 카드 -->
+            <div class="card">
+                <div class="section-title">🔐 비밀번호 변경</div>
+                <form method="POST" action="update.php" onsubmit="return validatePassword()">
+                    <input type="hidden" name="action" value="password">
+                    
+                    <div class="form-group">
+                        <label>현재 비밀번호 *</label>
+                        <input type="password" name="current_password" id="current_password" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>새 비밀번호 *</label>
+                        <input type="password" name="new_password" id="new_password" required>
+                        <div class="help-text">최소 8자 이상 입력해주세요</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>새 비밀번호 확인 *</label>
+                        <input type="password" name="confirm_password" id="confirm_password" required>
+                    </div>
+
+                    <div class="btn-group">
+                        <button type="submit" class="btn btn-secondary">🔑 비밀번호 변경</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function validatePassword() {
+        const newPassword = document.getElementById('new_password').value;
+        const confirmPassword = document.getElementById('confirm_password').value;
+        
+        if (newPassword.length < 8) {
+            alert('비밀번호는 최소 8자 이상이어야 합니다.');
+            return false;
+        }
+        
+        if (newPassword !== confirmPassword) {
+            alert('새 비밀번호가 일치하지 않습니다.');
+            return false;
+        }
+        
+        return true;
+    }
+    </script>
+</body>
+</html>

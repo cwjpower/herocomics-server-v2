@@ -1,0 +1,172 @@
+<?php
+/**
+ * HeroComics Admin Login API (권한 시스템 적용)
+ * 
+ * 권한 레벨:
+ * - 100: 슈퍼 어드민 (플랫폼 전체 관리)
+ * - 50: 출판사 어드민 (자기 출판사만)
+ */
+
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['code' => 1, 'msg' => 'POST 요청만 허용됩니다.']);
+    exit;
+}
+
+// DB 연결
+$db_host = 'herocomics-mariadb';
+$db_name = 'herocomics';
+$db_user = 'root';
+$db_pass = 'rootpass';
+
+try {
+    $pdo = new PDO(
+        "mysql:host={$db_host};dbname={$db_name};charset=utf8mb4",
+        $db_user,
+        $db_pass,
+        [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC
+        ]
+    );
+} catch (PDOException $e) {
+    echo json_encode(['code' => 1, 'msg' => 'DB 연결 실패']);
+    exit;
+}
+
+// 입력값
+$email = $_POST['email'] ?? '';
+$password = $_POST['password'] ?? '';
+
+if (empty($email) || empty($password)) {
+    echo json_encode(['code' => 1, 'msg' => '이메일과 비밀번호를 입력해주세요.']);
+    exit;
+}
+
+try {
+    // 어드민 계정 조회 (권한 50 이상)
+    $stmt = $pdo->prepare("
+        SELECT 
+            u.ID as uid,
+            u.user_pass,
+            u.user_email,
+            u.display_name,
+            u.user_level,
+            u.user_status,
+            u.publisher_id,
+            u.role,
+            p.publisher_name,
+            p.publisher_code,
+            p.status as publisher_status
+        FROM bt_users u
+        LEFT JOIN bt_publishers p ON u.publisher_id = p.publisher_id
+        WHERE u.user_email = :email
+        AND u.user_level >= 50
+        LIMIT 1
+    ");
+    
+    $stmt->execute(['email' => $email]);
+    $user = $stmt->fetch();
+
+    if (!$user) {
+        echo json_encode(['code' => 1, 'msg' => '어드민 계정이 존재하지 않습니다.']);
+        exit;
+    }
+
+    // 계정 상태 확인
+    if ($user['user_status'] != 0) {
+        echo json_encode(['code' => 1, 'msg' => '비활성화된 계정입니다.']);
+        exit;
+    }
+
+    // 출판사 어드민인 경우 출판사 상태 확인
+    if ($user['user_level'] == 50) {
+        if (!$user['publisher_id']) {
+            echo json_encode(['code' => 1, 'msg' => '출판사 정보가 없습니다.']);
+            exit;
+        }
+        
+        if ($user['publisher_status'] != 'active') {
+            $statusMsg = [
+                'pending' => '출판사가 승인 대기 중입니다.',
+                'suspended' => '출판사가 정지되었습니다.'
+            ];
+            echo json_encode([
+                'code' => 1, 
+                'msg' => $statusMsg[$user['publisher_status']] ?? '출판사를 이용할 수 없습니다.'
+            ]);
+            exit;
+        }
+    }
+
+    // 비밀번호 확인
+    if ($user['user_pass'] !== md5($password)) {
+        echo json_encode(['code' => 1, 'msg' => '비밀번호가 일치하지 않습니다.']);
+        exit;
+    }
+
+    // 권한 레벨 결정
+    $permission = '';
+    if ($user['user_level'] == 100) {
+        $permission = 'super_admin';
+    } elseif ($user['user_level'] == 50) {
+        $permission = 'publisher_admin';
+    }
+
+    // JWT 토큰 생성
+    $token_data = [
+        'uid' => $user['uid'],
+        'email' => $user['user_email'],
+        'level' => $user['user_level'],
+        'permission' => $permission,
+        'publisher_id' => $user['publisher_id'],
+        'role' => $user['role'],
+        'time' => time()
+    ];
+    
+    $token = base64_encode(json_encode($token_data));
+
+    // 로그인 시간 업데이트
+    $update_stmt = $pdo->prepare("UPDATE bt_users SET last_login = NOW() WHERE ID = :uid");
+    $update_stmt->execute(['uid' => $user['uid']]);
+
+    // 응답 데이터 구성
+    $response = [
+        'code' => 0,
+        'msg' => '로그인 성공',
+        'token' => $token,
+        'admin' => [
+            'uid' => $user['uid'],
+            'email' => $user['user_email'],
+            'name' => $user['display_name'],
+            'level' => $user['user_level'],
+            'permission' => $permission,
+            'role' => $user['role']
+        ]
+    ];
+
+    // 출판사 정보 추가 (출판사 어드민인 경우)
+    if ($user['user_level'] == 50 && $user['publisher_id']) {
+        $response['admin']['publisher'] = [
+            'id' => $user['publisher_id'],
+            'name' => $user['publisher_name'],
+            'code' => $user['publisher_code']
+        ];
+    }
+
+    echo json_encode($response);
+
+} catch (PDOException $e) {
+    echo json_encode(['code' => 1, 'msg' => 'DB 오류']);
+    exit;
+}
+?>

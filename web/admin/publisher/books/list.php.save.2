@@ -1,0 +1,219 @@
+<?php
+$page_title = '책 관리 - HeroComics 출판사 CMS';
+require_once '../layout/header.php';
+require_once '../../conf/db.php';
+
+$publisher_id = $_SESSION['publisher_id'] ?? 1;
+
+// 필터 값 받기
+$status = $_GET['status'] ?? 'all';
+$category = $_GET['category'] ?? 'all';
+$genre = $_GET['genre'] ?? 'all';
+$search = $_GET['search'] ?? '';
+$sort = $_GET['sort'] ?? 'created_desc';
+
+// WHERE 조건 생성
+$where = ["b.publisher_id = ?"];
+$params = [$publisher_id];
+
+if ($status != 'all') {
+    $where[] = "b.book_status = ?";
+    $params[] = $status;
+}
+
+if ($category != 'all') {
+    $where[] = "b.comics_brand = ?";
+    $params[] = $category;
+}
+
+if ($genre != 'all') {
+    $where[] = "EXISTS (SELECT 1 FROM bt_book_genres bg2 WHERE bg2.book_id = b.ID AND bg2.genre_id = ?)";
+    $params[] = intval($genre);
+}
+
+if ($search) {
+    $where[] = "(b.book_title LIKE ? OR b.author LIKE ?)";
+    $params[] = "%$search%";
+    $params[] = "%$search%";
+}
+
+$where_sql = implode(' AND ', $where);
+
+// 정렬 조건
+$order_by = match($sort) {
+    '
+created_desc' => 'b.created_dt DESC',
+    'created_asc' => 'b.created_dt ASC',
+    'price_desc' => 'b.sale_price DESC',
+    'price_asc' => 'b.sale_price ASC',
+    default => 'b.created_dt DESC'
+};
+
+// 페이지네이션
+$page = $_GET['page'] ?? 1;
+$per_page = $_GET['per_page'] ?? 20;
+$offset = ($page - 1) * $per_page;
+
+// 전체 개수
+$count_sql = "SELECT COUNT(*) FROM bt_books b WHERE $where_sql";
+$count_stmt = $pdo->prepare($count_sql);
+$count_stmt->execute($params);
+$total_books = $count_stmt->fetchColumn();
+$total_pages = ceil($total_books / $per_page);
+
+// 책 목록 조회
+$sql = "SELECT 
+    b.ID as book_id,
+    b.book_title,
+    b.author,
+    b.publisher,
+    b.sale_price,
+    b.cover_img,
+    b.book_status,
+    b.comics_brand,
+    b.created_dt,
+    b.isbn,
+    GROUP_CONCAT(g.genre_name ORDER BY g.genre_order SEPARATOR ', ') as genre_names
+FROM bt_books b
+LEFT JOIN bt_book_genres bg ON b.ID = bg.book_id
+LEFT JOIN bt_genres g ON bg.genre_id = g.genre_id
+WHERE $where_sql
+GROUP BY b.ID
+ORDER BY $order_by
+LIMIT ? OFFSET ?";
+
+$params[] = (int)$per_page;
+$params[] = (int)$offset;
+
+$stmt = $pdo->prepare($sql);
+$stmt->execute($params);
+$books = $stmt->fetchAll();
+
+// 통계 데이터
+$stats_sql = "SELECT 
+    COUNT(*) as total_books,
+    SUM(CASE WHEN book_status = 1 THEN 1 ELSE 0 END) as active_books,
+    SUM(CASE WHEN book_status = 2 THEN 1 ELSE 0 END) as soldout_books,
+    SUM(CASE WHEN book_status = 0 THEN 1 ELSE 0 END) as inactive_books
+FROM bt_books 
+WHERE publisher_id = ?";
+$stats_stmt = $pdo->prepare($stats_sql);
+$stats_stmt->execute([$publisher_id]);
+$stats = $stats_stmt->fetch();
+?>
+
+    <style>
+        .book-thumb {
+            width: 60px;
+            height: 80px;
+            object-fit: cover;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            cursor: pointer;
+        }
+        .status-active { background: #d4edda; color: #155724; }
+        .status-soldout { background: #fff3cd; color: #856404; }
+        .status-inactive { background: #f8d7da; color: #721c24; }
+
+        .category-badge {
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            font-weight: 500;
+        }
+        .cat-marvel { background: #ff0000; color: white; }
+        .cat-dc { background: #0476F2; color: white; }
+        .cat-image { background: #00a651; color: white; }
+        .cat-other { background: #6c757d; color: white; }
+
+        .stats-card {
+            border-left: 4px solid;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+        .stats-total { border-color: #007bff; }
+        .stats-active { border-color: #28a745; }
+        .stats-soldout { border-color: #ffc107; }
+        .stats-inactive { border-color: #dc3545; }
+
+        .filter-section {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+    </style>
+
+    <!-- 페이지 헤더 -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2><i class="fas fa-book"></i> 책 관리</h2>
+            <p class="text-muted mb-0">등록한 책을 관리하고 판매 현황을 확인하세요.</p>
+        </div>
+        <div>
+            <a href="book_upload.php" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus"></i> 새 책 추가
+            </a>
+        </div>
+    </div>
+
+    <!-- 통계 카드 -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stats-card stats-total">
+                <h5 class="mb-0"><?= number_format($stats['total_books']) ?>권</h5>
+                <small class="text-muted">전체 책</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card stats-active">
+                <h5 class="mb-0"><?= number_format($stats['active_books']) ?>권</h5>
+                <small class="text-muted">판매중</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card stats-soldout">
+                <h5 class="mb-0"><?= number_format($stats['soldout_books']) ?>권</h5>
+                <small class="text-muted">품절</small>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card stats-card stats-inactive">
+                <h5 class="mb-0"><?= number_format($stats['inactive_books']) ?>권</h5>
+                <small class="text-muted">판매중단</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- 필터 & 검색 -->
+    <div class="filter-section">
+        <form method="GET" class="row g-3">
+            <div class="col-md-2">
+                <label class="form-label">판매 상태</label>
+                <select name="status" class="form-select">
+                    <option value="all" <?= $status == 'all' ? 'selected' : '' ?>>전체</option>
+                    <option value="1" <?= $status == '1' ? 'selected' : '' ?>>판매중</option>
+                    <option value="2" <?= $status == '2' ? 'selected' : '' ?>>품절</option>
+                    <option value="0" <?= $status == '0' ? 'selected' : '' ?>>판매중단</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">브랜드</label>
+                <select name="category" class="form-select">
+                    <option value="all" <?= $category == 'all' ? 'selected' : '' ?>>전체</option>
+                    <option value="Marvel" <?= $category == 'Marvel' ? 'selected' : '' ?>>Marvel</option>
+                    <option value="DC" <?= $category == 'DC' ? 'selected' : '' ?>>DC</option>
+                    <option value="Image" <?= $category == 'Image' ? 'selected' : '' ?>>Image</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">정렬</label>
+                <select name="sort" class="form-select">
+                    <option value="created_desc" <?= $sort == 'created_desc' ? 'selected' : '' ?>>최신순</option>

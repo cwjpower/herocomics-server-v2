@@ -1,0 +1,744 @@
+<?php
+$page_title = '책 관리';
+$current_page = 'books';
+require_once '../layout/modern_header.php';
+require_once '../../conf/db.php';
+
+$publisher_id = $_SESSION['publisher_id'] ?? 1;
+
+// 필터 값 받기
+$status = $_GET['status'] ?? 'all';
+$category = $_GET['category'] ?? 'all';
+$genre = $_GET['genre'] ?? 'all';
+$search = $_GET['search'] ?? '';
+$sort = $_GET['sort'] ?? 'created_desc';
+
+// 보기 방식 설정 (일반 보기 or 시리즈별 보기)
+$view_mode = $_GET['view'] ?? 'normal';
+
+// 시리즈별 보기일 때는 다른 쿼리를 사용
+if ($view_mode === 'series') {
+    // 시리즈 목록 가져오기 (series_name이 NULL이 아닌 것만)
+    $series_sql = "SELECT 
+        series_name,
+        COUNT(*) as book_count,
+        MIN(created_dt) as first_created
+    FROM bt_books 
+    WHERE publisher_id = ? AND series_name IS NOT NULL AND series_name != ''
+    GROUP BY series_name
+    ORDER BY first_created DESC";
+    
+    $series_stmt = $pdo->prepare($series_sql);
+    $series_stmt->execute([$publisher_id]);
+    $series_list = $series_stmt->fetchAll();
+    
+    // 각 시리즈에 속한 책들을 가져오기
+    $series_books = [];
+    foreach ($series_list as $series) {
+        $books_sql = "SELECT 
+            b.ID as book_id,
+            b.book_title,
+            b.author,
+            b.series_volume,
+            b.cover_img,
+            b.book_status,
+            b.sale_price
+        FROM bt_books b
+        WHERE b.publisher_id = ? AND b.series_name = ?
+        ORDER BY b.series_volume ASC";
+        
+        $books_stmt = $pdo->prepare($books_sql);
+        $books_stmt->execute([$publisher_id, $series['series_name']]);
+        $series_books[$series['series_name']] = $books_stmt->fetchAll();
+    }
+    
+    // 시리즈에 속하지 않은 단독 책들
+    $standalone_sql = "SELECT 
+        b.ID as book_id,
+        b.book_title,
+        b.author,
+        b.cover_img,
+        b.book_status,
+        b.sale_price,
+        b.created_dt
+    FROM bt_books b
+    WHERE b.publisher_id = ? AND (b.series_name IS NULL OR b.series_name = '')
+    ORDER BY b.created_dt DESC";
+    
+    $standalone_stmt = $pdo->prepare($standalone_sql);
+    $standalone_stmt->execute([$publisher_id]);
+    $standalone_books = $standalone_stmt->fetchAll();
+}
+
+// 일반 보기일 때만 기존 쿼리 실행
+if ($view_mode === 'normal') {
+    // WHERE 조건 생성
+    $where = ["b.publisher_id = ?"];
+    $params = [$publisher_id];
+
+    if ($status != 'all') {
+        $where[] = "b.book_status = ?";
+        $params[] = $status;
+    }
+
+    if ($category != 'all') {
+        $where[] = "b.comics_brand = ?";
+        $params[] = $category;
+    }
+
+    if ($genre != 'all') {
+        $where[] = "EXISTS (SELECT 1 FROM bt_book_genres bg2 WHERE bg2.book_id = b.ID AND bg2.genre_id = ?)";
+        $params[] = intval($genre);
+    }
+
+    if ($search) {
+        $where[] = "(b.book_title LIKE ? OR b.author LIKE ?)";
+        $params[] = "%$search%";
+        $params[] = "%$search%";
+    }
+
+    $where_sql = implode(' AND ', $where);
+
+    // 정렬 조건
+    $order_by = match($sort) {
+        'created_desc' => 'b.created_dt DESC',
+        'created_asc' => 'b.created_dt ASC',
+        'price_desc' => 'b.sale_price DESC',
+        'price_asc' => 'b.sale_price ASC',
+        default => 'b.created_dt DESC'
+    };
+
+    // 페이지네이션
+    $page = $_GET['page'] ?? 1;
+    $per_page = $_GET['per_page'] ?? 20;
+    $offset = ($page - 1) * $per_page;
+
+    // 전체 개수
+    $count_sql = "SELECT COUNT(*) FROM bt_books b WHERE $where_sql";
+    $count_stmt = $pdo->prepare($count_sql);
+    $count_stmt->execute($params);
+    $total_books = $count_stmt->fetchColumn();
+    $total_pages = ceil($total_books / $per_page);
+
+    // 책 목록 조회
+    $sql = "SELECT 
+        b.ID as book_id,
+        b.book_title,
+        b.author,
+        b.publisher,
+        b.sale_price,
+        b.cover_img,
+        b.book_status,
+        b.comics_brand,
+        b.created_dt,
+        b.isbn,
+        GROUP_CONCAT(g.genre_name ORDER BY g.genre_order SEPARATOR ', ') as genre_names
+    FROM bt_books b
+    LEFT JOIN bt_book_genres bg ON b.ID = bg.book_id
+    LEFT JOIN bt_genres g ON bg.genre_id = g.genre_id
+    WHERE $where_sql
+    GROUP BY b.ID
+    ORDER BY $order_by
+    LIMIT ? OFFSET ?";
+
+    $params[] = (int)$per_page;
+    $params[] = (int)$offset;
+
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    $books = $stmt->fetchAll();
+}
+
+// 통계 데이터
+$stats_sql = "SELECT 
+    COUNT(*) as total_books,
+    SUM(CASE WHEN book_status = 1 THEN 1 ELSE 0 END) as active_books,
+    SUM(CASE WHEN book_status = 2 THEN 1 ELSE 0 END) as soldout_books,
+    SUM(CASE WHEN book_status = 0 THEN 1 ELSE 0 END) as inactive_books
+FROM bt_books 
+WHERE publisher_id = ?";
+$stats_stmt = $pdo->prepare($stats_sql);
+$stats_stmt->execute([$publisher_id]);
+$stats = $stats_stmt->fetch();
+?>
+
+<style>
+    .book-thumb {
+        width: 60px;
+        height: 80px;
+        object-fit: cover;
+        cursor: pointer;
+        border-radius: 4px;
+    }
+    
+    .status-badge {
+        padding: 4px 8px;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        font-weight: 500;
+        cursor: pointer;
+    }
+    
+    .status-active { background: #d4edda; color: #155724; }
+    .status-soldout { background: #fff3cd; color: #856404; }
+    .status-inactive { background: #f8d7da; color: #721c24; }
+    
+    .category-badge {
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 500;
+    }
+    
+    .cat-marvel { background: #ff0000; color: white; }
+    .cat-dc { background: #0476F2; color: white; }
+    .cat-image { background: #00a651; color: white; }
+    .cat-other { background: #6c757d; color: white; }
+    
+    .stats-card {
+        border-left: 4px solid;
+        padding: 15px;
+        margin-bottom: 15px;
+    }
+    
+    .stats-total { border-color: #007bff; }
+    .stats-active { border-color: #28a745; }
+    .stats-soldout { border-color: #ffc107; }
+    .stats-inactive { border-color: #dc3545; }
+    
+    .filter-section {
+        background: white;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+
+    /* 시리즈별 보기 스타일 */
+    .series-view-container {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .series-card {
+        background: white;
+        border: 2px solid #e9ecef;
+        border-radius: 12px;
+        padding: 25px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .series-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    }
+
+    .series-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+        padding-bottom: 15px;
+        border-bottom: 2px solid #e9ecef;
+    }
+
+    .series-title {
+        font-size: 1.3rem;
+        font-weight: 600;
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .series-books-row {
+        display: flex;
+        gap: 20px;
+        overflow-x: auto;
+        padding: 10px 0;
+    }
+
+    .series-books-row::-webkit-scrollbar {
+        height: 8px;
+    }
+
+    .series-books-row::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 10px;
+    }
+
+    .series-books-row::-webkit-scrollbar-thumb {
+        background: #888;
+        border-radius: 10px;
+    }
+
+    .series-books-row::-webkit-scrollbar-thumb:hover {
+        background: #555;
+    }
+
+    .series-book-item {
+        flex: 0 0 auto;
+        width: 150px;
+    }
+
+    .series-book-thumb {
+        position: relative;
+        width: 150px;
+        height: 210px;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        transition: transform 0.2s, box-shadow 0.2s;
+        background: #f8f9fa;
+    }
+
+    .series-book-thumb:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.25);
+    }
+
+    .series-book-thumb img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .no-image-placeholder {
+        width: 100%;
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        font-size: 3rem;
+    }
+
+    .volume-badge {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        padding: 5px 10px;
+        border-radius: 15px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .book-status-overlay {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+    }
+
+    .book-status-overlay .badge {
+        font-size: 0.7rem;
+        padding: 4px 8px;
+    }
+
+    .series-book-info {
+        margin-top: 10px;
+        text-align: center;
+    }
+
+    .book-title-small {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #2c3e50;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        margin-bottom: 5px;
+    }
+
+    .book-price-small {
+        font-size: 0.8rem;
+        color: #007bff;
+        font-weight: 600;
+    }
+
+    @media (max-width: 768px) {
+        .series-book-item {
+            width: 120px;
+        }
+        
+        .series-book-thumb {
+            width: 120px;
+            height: 168px;
+        }
+        
+        .series-title {
+            font-size: 1.1rem;
+        }
+    }
+</style>
+
+<!-- 페이지 헤더 -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-book"></i> 책 관리</h2>
+        <p class="text-muted mb-0">등록한 책을 관리하고 판매 현황을 확인하세요.</p>
+    </div>
+    <div>
+        <a href="book_upload.php" class="btn btn-primary btn-lg">
+            <i class="fas fa-plus"></i> 새 책 추가
+        </a>
+    </div>
+</div>
+
+<!-- 통계 카드 -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card stats-card stats-total">
+            <h5 class="mb-0"><?= number_format($stats['total_books']) ?>권</h5>
+            <small class="text-muted">전체 책</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card stats-active">
+            <h5 class="mb-0"><?= number_format($stats['active_books']) ?>권</h5>
+            <small class="text-muted">판매중</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card stats-soldout">
+            <h5 class="mb-0"><?= number_format($stats['soldout_books']) ?>권</h5>
+            <small class="text-muted">품절</small>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card stats-card stats-inactive">
+            <h5 class="mb-0"><?= number_format($stats['inactive_books']) ?>권</h5>
+            <small class="text-muted">판매중단</small>
+        </div>
+    </div>
+</div>
+
+<!-- 필터 & 검색 -->
+<div class="filter-section">
+    <form method="GET" class="row g-3">
+        <input type="hidden" name="view" value="<?= $view_mode ?>">
+        <div class="col-md-2">
+            <label class="form-label">판매 상태</label>
+            <select name="status" class="form-select">
+                <option value="all" <?= $status == 'all' ? 'selected' : '' ?>>전체</option>
+                <option value="1" <?= $status == '1' ? 'selected' : '' ?>>판매중</option>
+                <option value="2" <?= $status == '2' ? 'selected' : '' ?>>품절</option>
+                <option value="0" <?= $status == '0' ? 'selected' : '' ?>>판매중단</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">브랜드</label>
+            <select name="category" class="form-select">
+                <option value="all" <?= $category == 'all' ? 'selected' : '' ?>>전체</option>
+                <option value="Marvel" <?= $category == 'Marvel' ? 'selected' : '' ?>>Marvel</option>
+                <option value="DC" <?= $category == 'DC' ? 'selected' : '' ?>>DC</option>
+                <option value="Image" <?= $category == 'Image' ? 'selected' : '' ?>>Image</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">정렬</label>
+            <select name="sort" class="form-select">
+                <option value="created_desc" <?= $sort == 'created_desc' ? 'selected' : '' ?>>최신순</option>
+                <option value="created_asc" <?= $sort == 'created_asc' ? 'selected' : '' ?>>오래된순</option>
+                <option value="price_desc" <?= $sort == 'price_desc' ? 'selected' : '' ?>>가격높은순</option>
+                <option value="price_asc" <?= $sort == 'price_asc' ? 'selected' : '' ?>>가격낮은순</option>
+            </select>
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">장르</label>
+            <select name="genre" class="form-select">
+                <option value="all" <?= $genre == 'all' ? 'selected' : '' ?>>전체</option>
+                <?php
+                $genre_list = $pdo->query("SELECT * FROM bt_genres ORDER BY genre_order")->fetchAll();
+                foreach ($genre_list as $g): ?>
+                    <option value="<?= $g['genre_id'] ?>" <?= $genre == $g['genre_id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($g['genre_name']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+        </div>
+        <div class="col-md-4">
+            <label class="form-label">검색</label>
+            <input type="text" name="search" class="form-control" placeholder="제목, 저자 검색..." value="<?= htmlspecialchars($search) ?>">
+        </div>
+        <div class="col-md-2">
+            <label class="form-label">&nbsp;</label>
+            <button type="submit" class="btn btn-primary w-100">
+                <i class="fas fa-search"></i> 검색
+            </button>
+        </div>
+    </form>
+</div>
+
+<!-- 보기 방식 선택 -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <div>
+        <h5 class="mb-0">
+            <?php if ($view_mode === 'series'): ?>
+                📚 시리즈별 보기 (<?= count($series_list ?? []) ?>개 시리즈)
+            <?php else: ?>
+                📖 전체 책 목록 (<?= number_format($total_books ?? 0) ?>권)
+            <?php endif; ?>
+        </h5>
+    </div>
+    <div class="btn-group" role="group">
+        <a href="?view=normal&status=<?= $status ?>&category=<?= $category ?>&genre=<?= $genre ?>&search=<?= urlencode($search) ?>&sort=<?= $sort ?>" 
+           class="btn <?= $view_mode === 'normal' ? 'btn-primary' : 'btn-outline-primary' ?>">
+            <i class="fas fa-list"></i> 일반 보기
+        </a>
+        <a href="?view=series&status=<?= $status ?>&category=<?= $category ?>&genre=<?= $genre ?>&search=<?= urlencode($search) ?>&sort=<?= $sort ?>" 
+           class="btn <?= $view_mode === 'series' ? 'btn-primary' : 'btn-outline-primary' ?>">
+            <i class="fas fa-layer-group"></i> 시리즈별 보기
+        </a>
+    </div>
+</div>
+
+<?php if ($view_mode === 'series'): ?>
+    <!-- 시리즈별 보기 -->
+    <div class="series-view-container">
+        <?php if (count($series_list) > 0): ?>
+            <?php foreach ($series_list as $series): ?>
+                <div class="series-card mb-4">
+                    <div class="series-header">
+                        <h4 class="series-title mb-2">
+                            <i class="fas fa-book-open text-primary"></i>
+                            <?= htmlspecialchars($series['series_name']) ?>
+                        </h4>
+                        <span class="badge bg-secondary">전 <?= $series['book_count'] ?>권</span>
+                    </div>
+                    
+                    <div class="series-books-row">
+                        <?php 
+                        $books_in_series = $series_books[$series['series_name']] ?? [];
+                        foreach ($books_in_series as $book): 
+                        ?>
+                            <div class="series-book-item">
+                                <a href="edit.php?id=<?= $book['book_id'] ?>" class="text-decoration-none">
+                                    <div class="series-book-thumb">
+                                        <?php if ($book['cover_img']): ?>
+                                            <img src="<?= htmlspecialchars($book['cover_img']) ?>" 
+                                                 alt="<?= htmlspecialchars($book['book_title']) ?>"
+                                                 >
+                                        <?php else: ?>
+                                            <div class="no-image-placeholder">
+                                                <i class="fas fa-book"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                        
+                                        <?php if ($book['series_volume']): ?>
+                                            <div class="volume-badge">제<?= $book['series_volume'] ?>권</div>
+                                        <?php endif; ?>
+                                        
+                                        <div class="book-status-overlay">
+                                            <?php if ($book['book_status'] == 1): ?>
+                                                <span class="badge bg-success">판매중</span>
+                                            <?php elseif ($book['book_status'] == 2): ?>
+                                                <span class="badge bg-warning">품절</span>
+                                            <?php else: ?>
+                                                <span class="badge bg-danger">판매중단</span>
+                                            <?php endif; ?>
+                                        </div>
+                                    </div>
+                                    <div class="series-book-info">
+                                        <div class="book-title-small"><?= htmlspecialchars($book['book_title']) ?></div>
+                                        <div class="book-price-small"><?= number_format($book['sale_price']) ?>원</div>
+                                    </div>
+                                </a>
+                            </div>
+                        <?php endforeach; ?>
+                    </div>
+                </div>
+            <?php endforeach; ?>
+        <?php else: ?>
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle"></i> 등록된 시리즈가 없습니다.
+            </div>
+        <?php endif; ?>
+        
+        <!-- 시리즈에 속하지 않은 단독 책들 -->
+        <?php if (count($standalone_books) > 0): ?>
+            <div class="series-card mb-4 border-secondary">
+                <div class="series-header">
+                    <h4 class="series-title mb-2">
+                        <i class="fas fa-book text-secondary"></i>
+                        단독 작품
+                    </h4>
+                    <span class="badge bg-secondary"><?= count($standalone_books) ?>권</span>
+                </div>
+                
+                <div class="series-books-row">
+                    <?php foreach ($standalone_books as $book): ?>
+                        <div class="series-book-item">
+                            <a href="edit.php?id=<?= $book['book_id'] ?>" class="text-decoration-none">
+                                <div class="series-book-thumb">
+                                    <?php if ($book['cover_img']): ?>
+                                        <img src="<?= htmlspecialchars($book['cover_img']) ?>" 
+                                             alt="<?= htmlspecialchars($book['book_title']) ?>"
+                                             >
+                                    <?php else: ?>
+                                        <div class="no-image-placeholder">
+                                            <i class="fas fa-book"></i>
+                                        </div>
+                                    <?php endif; ?>
+                                    
+                                    <div class="book-status-overlay">
+                                        <?php if ($book['book_status'] == 1): ?>
+                                            <span class="badge bg-success">판매중</span>
+                                        <?php elseif ($book['book_status'] == 2): ?>
+                                            <span class="badge bg-warning">품절</span>
+                                        <?php else: ?>
+                                            <span class="badge bg-danger">판매중단</span>
+                                        <?php endif; ?>
+                                    </div>
+                                </div>
+                                <div class="series-book-info">
+                                    <div class="book-title-small"><?= htmlspecialchars($book['book_title']) ?></div>
+                                    <div class="book-price-small"><?= number_format($book['sale_price']) ?>원</div>
+                                </div>
+                            </a>
+                        </div>
+                    <?php endforeach; ?>
+                </div>
+            </div>
+        <?php endif; ?>
+    </div>
+
+<?php else: ?>
+
+<!-- 일반 보기 - 기존 테이블 -->
+    <div class="card">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>표지</th>
+                            <th>제목</th>
+                            <th>저자</th>
+                            <th>장르</th>
+                            <th>브랜드</th>
+                            <th>판매가</th>
+                            <th>상태</th>
+                            <th>등록일</th>
+                            <th>관리</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php if (count($books) > 0): ?>
+                            <?php foreach ($books as $book): ?>
+                                <tr>
+                                    <td>
+                                        <?php if ($book['cover_img']): ?>
+                                            <img src="<?= htmlspecialchars($book['cover_img']) ?>" 
+                                                 class="book-thumb" 
+                                                 alt="<?= htmlspecialchars($book['book_title']) ?>"
+                                                 >
+                                        <?php else: ?>
+                                            <div class="book-thumb bg-secondary d-flex align-items-center justify-content-center">
+                                                <i class="fas fa-book text-white"></i>
+                                            </div>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td>
+                                        <strong><?= htmlspecialchars($book['book_title']) ?></strong>
+                                        <br>
+                                        <small class="text-muted">ISBN: <?= htmlspecialchars($book['isbn']) ?></small>
+                                    </td>
+                                    <td><?= htmlspecialchars($book['author']) ?></td>
+                                    <td>
+                                        <small><?= htmlspecialchars($book['genre_names'] ?: '-') ?></small>
+                                    </td>
+                                    <td>
+                                        <?php if ($book['comics_brand']): ?>
+                                            <?php 
+                                            $brand_class = match($book['comics_brand']) {
+                                                'Marvel' => 'cat-marvel',
+                                                'DC' => 'cat-dc',
+                                                'Image' => 'cat-image',
+                                                default => 'cat-other'
+                                            };
+                                            ?>
+                                            <span class="category-badge <?= $brand_class ?>">
+                                                <?= htmlspecialchars($book['comics_brand']) ?>
+                                            </span>
+                                        <?php else: ?>
+                                            <span class="text-muted">-</span>
+                                        <?php endif; ?>
+                                    </td>
+                                    <td><?= number_format($book['sale_price']) ?>원</td>
+                                    <td>
+                                        <?php 
+                                        $status_class = match($book['book_status']) {
+                                            1 => 'status-active',
+                                            2 => 'status-soldout',
+                                            default => 'status-inactive'
+                                        };
+                                        $status_text = match($book['book_status']) {
+                                            1 => '판매중',
+                                            2 => '품절',
+                                            default => '판매중단'
+                                        };
+                                        ?>
+                                        <span class="status-badge <?= $status_class ?>">
+                                            <?= $status_text ?>
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <small><?= date('Y-m-d', strtotime($book['created_dt'])) ?></small>
+                                    </td>
+                                    <td>
+                                        <a href="edit.php?id=<?= $book['book_id'] ?>" class="btn btn-sm btn-outline-primary">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        <?php else: ?>
+                            <tr>
+                                <td colspan="9" class="text-center py-5">
+                                    <i class="fas fa-inbox fa-3x text-muted mb-3"></i>
+                                    <p class="text-muted">등록된 책이 없습니다.</p>
+                                </td>
+                            </tr>
+                        <?php endif; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- 페이지네이션 -->
+    <?php if ($total_pages > 1): ?>
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                <?php if ($page > 1): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $page - 1 ?>&status=<?= $status ?>&category=<?= $category ?>&genre=<?= $genre ?>&search=<?= urlencode($search) ?>&sort=<?= $sort ?>&view=<?= $view_mode ?>">
+                            이전
+                        </a>
+                    </li>
+                <?php endif; ?>
+
+                <?php for ($i = max(1, $page - 2); $i <= min($total_pages, $page + 2); $i++): ?>
+                    <li class="page-item <?= $i == $page ? 'active' : '' ?>">
+                        <a class="page-link" href="?page=<?= $i ?>&status=<?= $status ?>&category=<?= $category ?>&genre=<?= $genre ?>&search=<?= urlencode($search) ?>&sort=<?= $sort ?>&view=<?= $view_mode ?>">
+                            <?= $i ?>
+                        </a>
+                    </li>
+                <?php endfor; ?>
+
+                <?php if ($page < $total_pages): ?>
+                    <li class="page-item">
+                        <a class="page-link" href="?page=<?= $page + 1 ?>&status=<?= $status ?>&category=<?= $category ?>&genre=<?= $genre ?>&search=<?= urlencode($search) ?>&sort=<?= $sort ?>&view=<?= $view_mode ?>">
+                            다음
+                        </a>
+                    </li>
+                <?php endif; ?>
+            </ul>
+        </nav>
+    <?php endif; ?>
+<?php endif; ?>
+
+ <?php require_once '../layout/modern_footer.php'; ?>

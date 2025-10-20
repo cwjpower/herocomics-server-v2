@@ -1,0 +1,117 @@
+<?php
+
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// OPTIONS preflight 요청 처리
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['code' => 1, 'msg' => 'POST 요청만 허용됩니다.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+3. update_status.php 수정
+bash
+nano ~/herocomics-server/web/admin/apis/publishers/update_status.php
+맨 위 헤더를 이렇게 교체:
+
+php
+<?php
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+// OPTIONS preflight 요청 처리
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['code' => 1, 'msg' => 'POST 요청만 허용됩니다.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+✅ 저장하고 테스트!
+
+형, 3개 파일 헤더 부분만 수정하고 앱 새로고침해봐!
+
+이제 CORS 에러 사라지고 출판사 목록 나올 거야! 🚀
+
+
+
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    echo json_encode(['code' => 1, 'msg' => 'POST 요청만 허용됩니다.'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+$db_host = 'herocomics-mariadb';
+$db_name = 'herocomics';
+$db_user = 'root';
+$db_pass = 'rootpass';
+
+try {
+    $pdo = new PDO(
+        "mysql:host={$db_host};dbname={$db_name};charset=utf8mb4",
+        $db_user,
+        $db_pass,
+        [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]
+    );
+
+    $publisher_name = $_POST['publisher_name'] ?? '';
+    $publisher_code = $_POST['publisher_code'] ?? '';
+
+    if (empty($publisher_name)) {
+        echo json_encode(['code' => 1, 'msg' => '출판사명을 입력해주세요.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    if (empty($publisher_code)) {
+        echo json_encode(['code' => 1, 'msg' => '출판사 코드를 입력해주세요.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $check = $pdo->prepare("SELECT publisher_id FROM bt_publishers WHERE publisher_code = ?");
+    $check->execute([$publisher_code]);
+    
+    if ($check->fetch()) {
+        echo json_encode(['code' => 1, 'msg' => '이미 사용 중인 출판사 코드입니다.'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO bt_publishers 
+        (publisher_name, publisher_code, status, created_at)
+        VALUES (?, ?, 'active', NOW())
+    ");
+
+    $stmt->execute([
+        $publisher_name,
+        strtoupper($publisher_code)
+    ]);
+
+    $publisher_id = $pdo->lastInsertId();
+
+    echo json_encode([
+        'code' => 0,
+        'msg' => '출판사가 추가되었습니다.',
+        'data' => [
+            'publisher_id' => $publisher_id,
+            'publisher_name' => $publisher_name,
+            'publisher_code' => strtoupper($publisher_code)
+        ]
+    ], JSON_UNESCAPED_UNICODE);
+
+} catch (PDOException $e) {
+    echo json_encode([
+        'code' => 1,
+        'msg' => 'DB 오류: ' . $e->getMessage()
+    ], JSON_UNESCAPED_UNICODE);
+}
+?>

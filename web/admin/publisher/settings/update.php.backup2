@@ -1,0 +1,195 @@
+<?php
+require_once '../../wps-config.php';
+require_once '../../wps-settings.php';
+
+if (!isset($_SESSION['publisher_id'])) {
+    die('로그인이 필요합니다.');
+}
+
+$publisher_id = $_SESSION['publisher_id'];
+$action = $_POST['action'] ?? '';
+
+if (!isset($wdb) || !is_object($wdb)) {
+    die('DB 연결 실패');
+}
+
+switch($action) {
+    case 'profile':
+        // ✅ 변수에 먼저 할당 (PHP 8.1+ 호환)
+        $publisher_name = $_POST['publisher_name'];
+        $publisher_name_en = $_POST['publisher_name_en'] ?? '';
+        $contact_name = $_POST['contact_name'] ?? '';
+        $contact_email = $_POST['contact_email'];
+        $contact_phone = $_POST['contact_phone'] ?? '';
+        $address = $_POST['address'] ?? '';
+        
+        $query = "UPDATE bt_publishers SET 
+                  publisher_name = ?,
+                  publisher_name_en = ?,
+                  contact_name = ?,
+                  contact_email = ?,
+                  contact_phone = ?,
+                  address = ?
+                  WHERE publisher_id = ?";
+        
+        $stmt = $wdb->prepare($query);
+        if (!$stmt) {
+            die("쿼리 준비 실패: " . $wdb->error);
+        }
+        
+        $stmt->bind_param('ssssssi',
+            $publisher_name,
+            $publisher_name_en,
+            $contact_name,
+            $contact_email,
+            $contact_phone,
+            $address,
+            $publisher_id
+        );
+        
+        if ($stmt->execute()) {
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('저장되었습니다!'); location.href='profile.php';</script>";
+            exit();
+        } else {
+            $error_msg = $stmt->error;
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('저장 실패: " . $error_msg . "'); history.back();</script>";
+            exit();
+        }
+        break;
+        
+    case 'account':
+        // ✅ 변수에 먼저 할당
+        $bank_name = $_POST['bank_name'];
+        $bank_account = $_POST['bank_account'];
+        $bank_holder = $_POST['bank_holder'];
+        
+        $query = "UPDATE bt_publishers SET 
+                  bank_name = ?,
+                  bank_account = ?,
+                  bank_holder = ?
+                  WHERE publisher_id = ?";
+        
+        $stmt = $wdb->prepare($query);
+        if (!$stmt) {
+            die("쿼리 준비 실패: " . $wdb->error);
+        }
+        
+        $stmt->bind_param('sssi',
+            $bank_name,
+            $bank_account,
+            $bank_holder,
+            $publisher_id
+        );
+        
+        if ($stmt->execute()) {
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('저장되었습니다!'); location.href='account.php';</script>";
+            exit();
+        } else {
+            $error_msg = $stmt->error;
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('저장 실패: " . $error_msg . "'); history.back();</script>";
+            exit();
+        }
+        break;
+    
+    case 'password':
+        $current_password = $_POST['current_password'];
+        $new_password = $_POST['new_password'];
+        $confirm_password = $_POST['confirm_password'];
+        
+        if ($new_password !== $confirm_password) {
+            echo "<script>alert('새 비밀번호가 일치하지 않습니다.'); history.back();</script>";
+            exit();
+        }
+        
+        // 현재 비밀번호 확인
+        $query = "SELECT user_pass FROM bt_users WHERE publisher_id = ?";
+        $stmt = $wdb->prepare($query);
+        $stmt->bind_param('i', $publisher_id);
+        $stmt->execute();
+        $result = $stmt->get_result();
+        $row = $result->fetch_assoc();
+        $stmt->close();
+        
+        if (!$row) {
+            echo "<script>alert('사용자 정보를 찾을 수 없습니다.'); history.back();</script>";
+            exit();
+        }
+        
+        $stored_hash = $row['user_pass'];
+        $password_match = false;
+        
+        // ✅ 다양한 해시 방식 지원
+        if (strlen($stored_hash) === 32) {
+            // MD5 방식
+            $password_match = (md5($current_password) === $stored_hash);
+        } elseif (substr($stored_hash, 0, 1) === '*') {
+            // MySQL PASSWORD() 방식
+            $query = "SELECT PASSWORD(?) as hashed";
+            $stmt = $wdb->prepare($query);
+            $stmt->bind_param('s', $current_password);
+            $stmt->execute();
+            $result = $stmt->get_result();
+            $check = $result->fetch_assoc();
+            $stmt->close();
+            $password_match = ($check['hashed'] === $stored_hash);
+        } else {
+            // bcrypt (password_hash)
+            $password_match = password_verify($current_password, $stored_hash);
+        }
+        
+        if (!$password_match) {
+            echo "<script>alert('현재 비밀번호가 일치하지 않습니다.'); history.back();</script>";
+            exit();
+        }
+        
+        // ✅ 새 비밀번호는 bcrypt로 저장
+        $hashed_password = password_hash($new_password, PASSWORD_DEFAULT);
+        $query = "UPDATE bt_users SET user_pass = ? WHERE publisher_id = ?";
+        $stmt = $wdb->prepare($query);
+        $stmt->bind_param('si', $hashed_password, $publisher_id);
+        
+        if ($stmt->execute()) {
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('비밀번호가 변경되었습니다!'); location.href='profile.php';</script>";
+            exit();
+        } else {
+            $error_msg = $stmt->error;
+            $stmt->close();
+            // ✅ DB 연결 명시적으로 닫기
+            if (isset($wdb) && is_object($wdb)) {
+                $wdb->close();
+            }
+            echo "<script>alert('비밀번호 변경 실패: " . $error_msg . "'); history.back();</script>";
+            exit();
+        }
+        break;
+        
+    default:
+        echo "<script>alert('잘못된 요청입니다.'); history.back();</script>";
+        exit();
+}
+?>

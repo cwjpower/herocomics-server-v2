@@ -1,0 +1,161 @@
+<?php
+$page_title = '새 책 추가 - HeroComics 출판사 CMS';
+require_once '../layout/header.php';
+require_once '../../conf/db.php';
+
+$publisher_id = $_SESSION['publisher_id'] ?? 1;
+$user_id = $_SESSION['user_id'] ?? 1;
+?>
+
+<style>
+    .upload-section {
+        background: white;
+        padding: 2rem;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        margin-bottom: 2rem;
+    }
+    
+    .section-title {
+        font-size: 1.1rem;
+        font-weight: 600;
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid #e5e7eb;
+    }
+    
+    .image-preview {
+        width: 200px;
+        height: 280px;
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #f9fafb;
+        cursor: pointer;
+        overflow: hidden;
+    }
+    
+    .image-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+    
+    .image-preview:hover {
+        border-color: var(--primary-color);
+        background: #eff6ff;
+    }
+    
+    .file-upload-box {
+        border: 2px dashed #d1d5db;
+        border-radius: 8px;
+        padding: 3rem 2rem;
+        text-align: center;
+        background: #f9fafb;
+        cursor: pointer;
+        transition: all 0.3s;
+    }
+    
+    .file-upload-box:hover {
+        border-color: var(--primary-color);
+        background: #eff6ff;
+    }
+    
+    .file-upload-box.has-file {
+        border-color: #10b981;
+        background: #ecfdf5;
+    }
+    
+    .required-field::after {
+        content: '*';
+        color: #dc3545;
+        margin-left: 4px;
+    }
+    
+    .form-hint {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+    
+    .alert-info-custom {
+        background: #dbeafe;
+        border-left: 4px solid #3b82f6;
+        padding: 1rem;
+        border-radius: 4px;
+        margin-bottom: 1.5rem;
+    }
+</style>
+
+<!-- 페이지 헤더 -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="fas fa-plus-circle"></i> 새 책 추가</h2>
+        <p class="text-muted mb-0">새로운 책을 등록하고 판매를 시작하세요.</p>
+    </div>
+    <div>
+        <a href="list.php" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> 목록으로
+        </a>
+    </div>
+</div>
+
+<!-- 안내 메시지 -->
+<div class="alert-info-custom">
+    <i class="fas fa-info-circle"></i>
+    <strong>업로드 가이드:</strong> 
+    만화 파일은 ZIP으로 압축하여 업로드하거나, 표지 이미지만 먼저 등록할 수 있습니다. 
+    최대 파일 크기는 <strong>1GB</strong>입니다.
+</div>
+
+<form method="POST" action="book_upload_process.php" enctype="multipart/form-data" id="bookForm">
+    <input type="hidden" name="publisher_id" value="<?= $publisher_id ?>">
+    <input type="hidden" name="user_id" value="<?= $user_id ?>">
+    
+    <!-- 1. 기본 정보 -->
+    <div class="upload-section">
+        <h3 class="section-title">
+            <i class="fas fa-book"></i> 기본 정보
+        </h3>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <!-- 제목 -->
+                <div class="mb-3">
+                    <label class="form-label required-field">책 제목</label>
+                    <input type="text" name="book_title" class="form-control form-control-lg" required 
+                           placeholder="예: Spider-Man #1">
+                    <div class="form-hint">책의 정확한 제목을 입력하세요.</div>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <!-- 저자 -->
+                        <div class="mb-3">
+                            <label class="form-label required-field">저자</label>
+                            <input type="text" name="author" class="form-control" required 
+                                   placeholder="예: Stan Lee">
+                        </div>
+                    </div>
+                    
+                    <div class="col-md-6">
+                        <!-- 출판사 -->
+                        <div class="mb-3">
+                            <label class="form-label required-field">출판사</label>
+                            <input type="text" name="publisher" class="form-control" required 
+                                   placeholder="예: 마블코리아">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ISBN -->
+                <div class="mb-3">
+                    <label class="form-label required-field">ISBN</label>
+                    <input type="text" name="isbn" class="form-control" required 
+                           placeholder="예: ISBN001 (고유값이어야 합니다)">
+                    <div class="form-hint">ISBN 13자리 또는 고유 식별 코드</div>
+                </div>
+            </div>
+

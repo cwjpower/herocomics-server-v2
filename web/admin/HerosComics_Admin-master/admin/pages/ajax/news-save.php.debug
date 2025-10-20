@@ -1,0 +1,1 @@
+<?php error_log("FILES: " . print_r($_FILES, true)); ?>

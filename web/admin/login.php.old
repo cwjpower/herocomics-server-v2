@@ -1,0 +1,5 @@
+<?php
+// HerosComics CMS로 리다이렉트
+header("Location: HerosComics_Admin-master/admin/login.php");
+exit;
+?>

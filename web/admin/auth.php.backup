@@ -1,0 +1,14 @@
+<?php
+// HerosComics 시스템에 맞게 수정
+session_start();
+
+// 이미 로그인되어 있으면 대시보드로
+if (!empty($_SESSION['login'])) {
+    header("Location: HerosComics_Admin-master/admin/admin.php");
+    exit;
+}
+
+// 로그인 페이지로 리다이렉트
+header("Location: HerosComics_Admin-master/admin/login.php");
+exit;
+?>

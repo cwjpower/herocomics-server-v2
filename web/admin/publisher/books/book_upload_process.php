@@ -1,0 +1,221 @@
+<?php
+session_start();
+require_once '../../conf/db.php';
+
+// 고정값
+$publisher_id = 1;
+$user_id = 38;
+
+$book_title = $_POST['book_title'] ?? '';
+$author = $_POST['author'] ?? '';
+$publisher = $_POST['publisher'] ?? '';
+$isbn = $_POST['isbn'] ?? '';
+$normal_price = intval($_POST['normal_price'] ?? 0);
+$discount_rate = intval($_POST['discount_rate'] ?? 0);
+$sale_price = intval($_POST['sale_price'] ?? 0);
+$comics_brand = $_POST['comics_brand'] ?? '';
+$published_dt = $_POST['published_dt'] ?? null;
+if (empty($published_dt)) {
+    $published_dt = null;
+}
+$book_status = intval($_POST['book_status'] ?? 1);
+$is_free = isset($_POST['is_free']) ? 'Y' : 'N';
+$is_pkg = isset($_POST['is_pkg']) ? 'Y' : 'N';
+$upload_type = $_POST['upload_type'] ?? 'zip';
+$has_action = isset($_POST['has_action']) ? 'Y' : 'N';
+
+// 추가 설정 정보
+$preview_pages = !empty($_POST['preview_pages']) ? intval($_POST['preview_pages']) : null;
+$age_rating = $_POST['age_rating'] ?? '전체이용가';
+$free_trial_days = !empty($_POST['free_trial_days']) ? intval($_POST['free_trial_days']) : null;
+$series_name = $_POST['series_name'] ?? null;
+$series_volume = !empty($_POST['series_volume']) ? intval($_POST['series_volume']) : null;
+
+// 유효성 검사
+if (empty($book_title) || empty($author) || empty($isbn)) {
+    die("필수 항목을 입력해주세요.");
+}
+
+// ISBN 중복 체크
+$check_sql = "SELECT ID FROM bt_books WHERE isbn = ?";
+$check_stmt = $pdo->prepare($check_sql);
+$check_stmt->execute([$isbn]);
+if ($check_stmt->fetch()) {
+    die("이미 존재하는 ISBN입니다: " . htmlspecialchars($isbn));
+}
+
+// 업로드 디렉토리 설정
+$upload_base_dir = __DIR__ . '/../../uploads/books/';
+if (!is_dir($upload_base_dir)) {
+    mkdir($upload_base_dir, 0755, true);
+}
+
+$book_folder = date('YmdHis') . '_' . uniqid();
+$book_dir = $upload_base_dir . $book_folder . '/';
+mkdir($book_dir, 0755, true);
+
+// 1. 표지 이미지 업로드
+$cover_img_path = '';
+if (isset($_FILES['cover_img']) && $_FILES['cover_img']['error'] === UPLOAD_ERR_OK) {
+    $cover_tmp = $_FILES['cover_img']['tmp_name'];
+    $cover_ext = strtolower(pathinfo($_FILES['cover_img']['name'], PATHINFO_EXTENSION));
+    $cover_filename = 'cover.' . $cover_ext;
+    $cover_path = $book_dir . $cover_filename;
+    
+    if (move_uploaded_file($cover_tmp, $cover_path)) {
+        $cover_img_path = '/admin/uploads/books/' . $book_folder . '/' . $cover_filename;
+    }
+}
+
+// 2. 만화 파일 업로드
+$epub_path = '';
+$epub_name = '';
+
+try {
+    if ($upload_type === 'zip' && isset($_FILES['comic_file']) && $_FILES['comic_file']['error'] === UPLOAD_ERR_OK) {
+        // ZIP 파일 처리
+        $zip_tmp = $_FILES['comic_file']['tmp_name'];
+        $zip_name = $_FILES['comic_file']['name'];
+        $zip_size = $_FILES['comic_file']['size'];
+        
+        // 1GB 체크
+        if ($zip_size > 1024 * 1024 * 1024) {
+            throw new Exception("파일 크기가 1GB를 초과합니다.");
+        }
+        
+        // ZIP 저장
+        $zip_filename = 'comic_' . time() . '.zip';
+        $zip_path = $book_dir . $zip_filename;
+        
+        if (!move_uploaded_file($zip_tmp, $zip_path)) {
+            throw new Exception("ZIP 파일 업로드 실패");
+        }
+        
+        // ZIP 압축 해제
+        $zip = new ZipArchive;
+        if ($zip->open($zip_path) === TRUE) {
+            $extract_dir = $book_dir . 'pages/';
+            mkdir($extract_dir, 0755, true);
+            
+            $zip->extractTo($extract_dir);
+            $zip->close();
+            
+            // AVF 파일 자동 감지
+            if (file_exists($extract_dir . 'frame.avf')) {
+                $has_action = 'Y';
+            }
+            
+            $epub_path = '/admin/uploads/books/' . $book_folder . '/pages/';
+            $epub_name = $zip_name;
+        } else {
+            throw new Exception("ZIP 파일 압축 해제 실패");
+        }
+        
+    } elseif ($upload_type === 'images' && isset($_FILES['comic_images']) && !empty($_FILES['comic_images']['name'][0])) {
+        // 이미지 여러 개 처리
+        $pages_dir = $book_dir . 'pages/';
+        mkdir($pages_dir, 0755, true);
+        
+        $total_size = 0;
+        $file_count = count($_FILES['comic_images']['name']);
+        
+        if ($file_count > 50) {
+            throw new Exception("최대 50개 파일까지만 업로드 가능합니다.");
+        }
+        
+        for ($i = 0; $i < $file_count; $i++) {
+            if ($_FILES['comic_images']['error'][$i] === UPLOAD_ERR_OK) {
+                $total_size += $_FILES['comic_images']['size'][$i];
+                
+                if ($total_size > 1024 * 1024 * 1024) {
+                    throw new Exception("총 파일 크기가 1GB를 초과합니다.");
+                }
+                
+                $tmp = $_FILES['comic_images']['tmp_name'][$i];
+                $ext = strtolower(pathinfo($_FILES['comic_images']['name'][$i], PATHINFO_EXTENSION));
+                $filename = sprintf('page_%03d.%s', $i + 1, $ext);
+                
+                move_uploaded_file($tmp, $pages_dir . $filename);
+            }
+        }
+        
+        $epub_path = '/admin/uploads/books/' . $book_folder . '/pages/';
+        $epub_name = $file_count . ' images';
+    }
+    
+    // 3. AVF 파일 업로드 (선택)
+    if ($has_action === 'Y' && isset($_FILES['avf_file']) && $_FILES['avf_file']['error'] === UPLOAD_ERR_OK) {
+        $avf_tmp = $_FILES['avf_file']['tmp_name'];
+        $avf_path = $book_dir . 'frame.avf';
+        move_uploaded_file($avf_tmp, $avf_path);
+    }
+    
+} catch (Exception $e) {
+    // 업로드 실패 시 폴더 삭제
+    if (is_dir($book_dir)) {
+        deleteDirectory($book_dir);
+    }
+    die("업로드 오류: " . $e->getMessage());
+}
+
+// 4. DB 저장
+try {
+    $sql = "INSERT INTO bt_books (
+        book_title, author, publisher, isbn,
+        normal_price, discount_rate, sale_price,
+        cover_img, epub_path, epub_name,
+        comics_brand, published_dt, book_status,
+        is_free, is_pkg, upload_type,
+        user_id, publisher_id, created_dt,
+        preview_pages, age_rating, free_trial_days, series_name, series_volume
+   ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), ?, ?, ?, ?, ?)";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute([
+        $book_title, $author, $publisher, $isbn,
+        $normal_price, $discount_rate, $sale_price,
+        $cover_img_path, $epub_path, $epub_name,
+        $comics_brand, $published_dt, $book_status,
+        $is_free, $is_pkg, $upload_type,
+        $user_id, $publisher_id,
+        $preview_pages, $age_rating, $free_trial_days, $series_name, $series_volume
+    ]);
+    
+    $book_id = $pdo->lastInsertId();
+    
+
+    // 장르 저장
+    if (!empty($_POST['genres']) && is_array($_POST['genres'])) {
+        $genre_insert = $pdo->prepare("INSERT INTO bt_book_genres (book_id, genre_id) VALUES (?, ?)");
+        foreach ($_POST['genres'] as $genre_id) {
+            $genre_insert->execute([$book_id, intval($genre_id)]);
+        }
+    }
+    // 성공 메시지
+    header('Location: list.php?success=1&book_id=' . $book_id);
+    exit;
+    
+} catch (PDOException $e) {
+    // DB 저장 실패 시 업로드된 파일 삭제
+    if (is_dir($book_dir)) {
+        deleteDirectory($book_dir);
+    }
+    die("DB 저장 오류: " . $e->getMessage());
+}
+
+// 디렉토리 삭제 함수
+function deleteDirectory($dir) {
+    if (!is_dir($dir)) {
+        return;
+    }
+    
+    $files = array_diff(scandir($dir), ['.', '..']);
+    
+    foreach ($files as $file) {
+        $path = $dir . '/' . $file;
+        is_dir($path) ? deleteDirectory($path) : unlink($path);
+    }
+    
+    rmdir($dir);
+}
+?>

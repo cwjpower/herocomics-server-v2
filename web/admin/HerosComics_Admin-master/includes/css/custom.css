@@ -1,0 +1,80 @@
+/* Book Tag Styles */
+.book-tag {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    color: white;
+    font-size: 11px;
+    font-weight: bold;
+    text-align: center;
+}
+
+.tag-marvel {
+    background-color: #e23636;
+}
+
+.tag-dc {
+    background-color: #0476F2;
+}
+
+.tag-image {
+    background-color: #FF6600;
+}
+
+.tag-darkhorse {
+    background-color: #333333;
+}
+
+.tag-idw {
+    background-color: #6C5CE7;
+}
+
+.tag-total {
+    background-color: #00B894;
+}
+
+.tag-default {
+    background-color: #95a5a6;
+}
+/* 사이드바 항상 표시 */
+.main-sidebar {
+}
+.content-wrapper {
+}
+/* 사이드바 항상 표시 */
+.main-sidebar {
+    transform: translate(0, 0) !important;
+    left: 0 !important;
+    margin-left: 0 !important;
+}
+.content-wrapper {
+    margin-left: 230px !important;
+}
+
+/* 사이드바 항상 표시 */
+.main-sidebar {
+    transform: translate(0, 0) !important;
+    left: 0 !important;
+    margin-left: 0 !important;
+}
+.content-wrapper {
+    margin-left: 230px !important;
+}
+
+/* 사이드바 항상 표시 - 강력 버전 */
+body .main-sidebar {
+    transform: translate(0, 0) !important;
+    left: 0 !important;
+    margin-left: 0 !important;
+    display: block !important;
+    visibility: visible !important;
+    position: absolute !important;
+}
+body .content-wrapper {
+    margin-left: 230px !important;
+}
+body.sidebar-collapse .main-sidebar {
+    transform: translate(0, 0) !important;
+    left: 0 !important;
+}
+

@@ -1,0 +1,248 @@
+<?php
+header('Content-Type: application/json; charset=utf-8');
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, Authorization');
+
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    http_response_code(200);
+    exit();
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    http_response_code(405);
+    echo json_encode([
+        'code' => 1,
+        'msg' => 'Method not allowed',
+        'data' => null
+    ], JSON_UNESCAPED_UNICODE);
+    exit();
+}
+
+// 파일명에서 페이지 번호 추출 (끝의 숫자)
+function extractPageNumber($filename) {
+    $name = pathinfo($filename, PATHINFO_FILENAME);
+    
+    // 파일명 끝에 있는 숫자 찾기
+    if (preg_match('/(\d+)$/', $name, $matches)) {
+        return intval($matches[1]);
+    }
+    
+    return 0;
+}
+
+$host = getenv('DB_HOST') ?: 'herocomics-mariadb';
+$dbname = getenv('DB_NAME') ?: 'herocomics';
+$username = getenv('DB_USER') ?: 'root';
+$password = getenv('DB_PASSWORD') ?: 'rootpass';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    $volume_id = $_POST['volume_id'] ?? 0;
+    
+    if (empty($volume_id)) {
+        http_response_code(400);
+        echo json_encode([
+            'code' => 1,
+            'msg' => 'volume_id is required',
+            'data' => null
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+    
+    // 볼륨 존재 확인
+    $stmt = $pdo->prepare("SELECT * FROM bt_volumes WHERE volume_id = :volume_id");
+    $stmt->execute([':volume_id' => $volume_id]);
+    $volume = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$volume) {
+        http_response_code(404);
+        echo json_encode([
+            'code' => 1,
+            'msg' => 'Volume not found',
+            'data' => null
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+    
+    // 업로드 디렉토리 생성
+    $upload_dir = __DIR__ . "/../../../uploads/pages/volume_" . $volume_id;
+    if (!file_exists($upload_dir)) {
+        mkdir($upload_dir, 0755, true);
+    }
+    
+    $uploaded_files = [];
+    $uploaded_count = 0;
+    $files_to_process = [];
+    
+    // ZIP 파일 처리
+    if (isset($_FILES['zip_file']) && $_FILES['zip_file']['error'] === UPLOAD_ERR_OK) {
+        $zip_tmp = $_FILES['zip_file']['tmp_name'];
+        
+        $zip = new ZipArchive();
+        if ($zip->open($zip_tmp) === TRUE) {
+            $temp_extract_dir = sys_get_temp_dir() . '/herocomics_' . uniqid();
+            mkdir($temp_extract_dir, 0755, true);
+            
+            $zip->extractTo($temp_extract_dir);
+            $zip->close();
+            
+            // 압축 해제된 파일들 수집
+            $iterator = new RecursiveIteratorIterator(
+                new RecursiveDirectoryIterator($temp_extract_dir, RecursiveDirectoryIterator::SKIP_DOTS)
+            );
+            
+            foreach ($iterator as $file) {
+                if ($file->isFile()) {
+                    $file_ext = strtolower($file->getExtension());
+                    $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                    
+                    if (in_array($file_ext, $allowed_ext)) {
+                        $files_to_process[] = [
+                            'path' => $file->getPathname(),
+                            'name' => $file->getFilename(),
+                            'ext' => $file_ext
+                        ];
+                    }
+                }
+            }
+        } else {
+            http_response_code(400);
+            echo json_encode([
+                'code' => 1,
+                'msg' => 'Failed to open ZIP file',
+                'data' => null
+            ], JSON_UNESCAPED_UNICODE);
+            exit();
+        }
+    }
+    
+    // 개별 파일 처리
+    if (!empty($_FILES['files'])) {
+        $files = $_FILES['files'];
+        $file_count = is_array($files['name']) ? count($files['name']) : 1;
+        
+        for ($i = 0; $i < $file_count; $i++) {
+            if (is_array($files['name'])) {
+                $file_name = $files['name'][$i];
+                $file_tmp = $files['tmp_name'][$i];
+                $file_error = $files['error'][$i];
+            } else {
+                $file_name = $files['name'];
+                $file_tmp = $files['tmp_name'];
+                $file_error = $files['error'];
+            }
+            
+            if ($file_error === UPLOAD_ERR_OK) {
+                $file_ext = strtolower(pathinfo($file_name, PATHINFO_EXTENSION));
+                $allowed_ext = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                
+                if (in_array($file_ext, $allowed_ext)) {
+                    $files_to_process[] = [
+                        'path' => $file_tmp,
+                        'name' => $file_name,
+                        'ext' => $file_ext
+                    ];
+                }
+            }
+        }
+    }
+    
+    if (empty($files_to_process)) {
+        http_response_code(400);
+        echo json_encode([
+            'code' => 1,
+            'msg' => 'No valid files to upload',
+            'data' => null
+        ], JSON_UNESCAPED_UNICODE);
+        exit();
+    }
+    
+    // 파일명의 숫자로 정렬
+    usort($files_to_process, function($a, $b) {
+        $num_a = extractPageNumber($a['name']);
+        $num_b = extractPageNumber($b['name']);
+        return $num_a - $num_b;
+    });
+    
+    // 현재 최대 페이지 번호 가져오기
+    $stmt = $pdo->prepare("SELECT IFNULL(MAX(page_number), 0) as max_page FROM bt_books_pages WHERE volume_id = :volume_id");
+    $stmt->execute([':volume_id' => $volume_id]);
+    $current_max_page = $stmt->fetchColumn();
+    
+    // 파일들을 순서대로 저장
+    foreach ($files_to_process as $index => $file) {
+        $page_number = $current_max_page + $index + 1;
+        
+        // 새 파일명 생성
+        $new_filename = "page_" . str_pad($page_number, 4, '0', STR_PAD_LEFT) . "." . $file['ext'];
+        $file_path = $upload_dir . "/" . $new_filename;
+        
+        // 파일 복사
+        if (copy($file['path'], $file_path)) {
+            // DB에 저장
+            $web_path = "/uploads/pages/volume_" . $volume_id . "/" . $new_filename;
+            
+            $stmt = $pdo->prepare("INSERT INTO bt_books_pages (volume_id, page_number, image_path) VALUES (:volume_id, :page_number, :image_path)");
+            $stmt->execute([
+                ':volume_id' => $volume_id,
+                ':page_number' => $page_number,
+                ':image_path' => $web_path
+            ]);
+            
+            $uploaded_files[] = [
+                'page_number' => $page_number,
+                'original_name' => $file['name'],
+                'filename' => $new_filename,
+                'path' => $web_path
+            ];
+            $uploaded_count++;
+        }
+    }
+    
+    // 임시 디렉토리 정리
+    if (isset($temp_extract_dir) && file_exists($temp_extract_dir)) {
+        $files = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($temp_extract_dir, RecursiveDirectoryIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($files as $fileinfo) {
+            $todo = ($fileinfo->isDir() ? 'rmdir' : 'unlink');
+            $todo($fileinfo->getRealPath());
+        }
+        rmdir($temp_extract_dir);
+    }
+    
+    // 볼륨의 total_pages 업데이트
+    $stmt = $pdo->prepare("UPDATE bt_volumes SET total_pages = (SELECT COUNT(*) FROM bt_books_pages WHERE volume_id = :volume_id) WHERE volume_id = :volume_id");
+    $stmt->execute([':volume_id' => $volume_id]);
+    
+    echo json_encode([
+        'code' => 0,
+        'msg' => 'Upload successful',
+        'data' => [
+            'volume_id' => $volume_id,
+            'uploaded_count' => $uploaded_count,
+            'files' => $uploaded_files
+        ]
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    
+} catch (PDOException $e) {
+    http_response_code(500);
+    echo json_encode([
+        'code' => 1,
+        'msg' => 'Database error: ' . $e->getMessage(),
+        'data' => null
+    ], JSON_UNESCAPED_UNICODE);
+} catch (Exception $e) {
+    http_response_code(500);
+    echo json_encode([
+        'code' => 1,
+        'msg' => 'Error: ' . $e->getMessage(),
+        'data' => null
+    ], JSON_UNESCAPED_UNICODE);
+}
+?>
+
