@@ -395,8 +395,6 @@ $current_page = "dashboard";
     </style>
 </head>
 <body>
-<?php include "includes/sidebar.php"; ?>
-
 <!-- 사이드바 -->
     <div class="sidebar">
         <div class="logo">
