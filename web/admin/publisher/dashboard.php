@@ -563,12 +563,12 @@ $current_page = "dashboard";
                         <div class="label">책 목록 관리</div>
                     </a>
                     
-                    <a href="./orders/list.php" class="action-btn mb-3">
+                    <a href="orders/list.php" class="action-btn mb-3" style="text-decoration: none; display: block;">
                         <i class="fas fa-shopping-cart"></i>
                         <div class="label">주문 관리</div>
                     </a>
                     
-                    <a href="./sales/dashboard.php" class="action-btn mb-3">
+                    <a href="sales/dashboard.php" class="action-btn mb-3" style="text-decoration: none; display: block;">
                         <i class="fas fa-won-sign"></i>
                         <div class="label">매출/정산</div>
                     </a>
