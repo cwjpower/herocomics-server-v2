@@ -421,7 +421,7 @@ $current_page = "dashboard";
             <span>장르 관리</span>
         </a>
         
-        <a href="#" class="menu-item">
+        <a href="orders/list.php" class="menu-item">
             <i class="fas fa-shopping-cart"></i>
             <span>주문 관리</span>
         </a>
