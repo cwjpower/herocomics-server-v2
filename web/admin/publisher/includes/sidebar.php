@@ -14,7 +14,7 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
 <style>
 .sidebar {
     width: 250px;
-    background: #FFB366; /* 연한 주황색 */
+    background: #FF8C42; /* 더 진한 주황색 */
     color: white;
     min-height: 100vh;
     padding: 20px 0;
@@ -27,11 +27,12 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
 
 .sidebar-header {
     padding: 20px;
-    font-size: 24px;
+    font-size: 20px;
     font-weight: bold;
     color: white;
     text-align: center;
     margin-bottom: 20px;
+    border-bottom: 1px solid rgba(255,255,255,0.3);
 }
 
 .sidebar-menu {
@@ -51,22 +52,24 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
     color: white;
     text-decoration: none;
     transition: all 0.3s ease;
+    font-size: 16px;
+    font-weight: 500;
 }
 
 .sidebar-menu a:hover {
-    background: rgba(255,255,255,0.2);
+    background: rgba(0,0,0,0.1);
     padding-left: 25px;
 }
 
 .sidebar-menu a.active {
-    background: rgba(255,255,255,0.3);
+    background: rgba(0,0,0,0.2);
     border-left: 4px solid white;
     font-weight: 600;
 }
 
 .sidebar-menu a i {
     width: 25px;
-    margin-right: 10px;
+    margin-right: 12px;
     font-size: 18px;
 }
 
@@ -81,7 +84,7 @@ if (in_array($current_dir, ['settings', 'books', 'genres', 'orders', 'sales'])) 
 
 <div class="sidebar">
     <div class="sidebar-header">
-        <i class="fas fa-book"></i> HeroComics
+        HeroComics 출판사
     </div>
     
     <ul class="sidebar-menu">
