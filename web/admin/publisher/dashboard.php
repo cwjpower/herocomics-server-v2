@@ -563,8 +563,13 @@ $current_page = "dashboard";
                         <div class="label">책 목록 관리</div>
                     </a>
                     
-                    <a href="#" class="action-btn mb-3">
+                    <a href="orders/list.php" class="action-btn mb-3">
                         <i class="fas fa-chart-bar"></i>
+                    
+                    <a href="sales/dashboard.php" class="action-btn mb-3">
+                        <i class="fas fa-won-sign"></i>
+                        <div class="label">매출/정산</div>
+                    </a>
                         <div class="label">상세 통계 보기</div>
                     </a>
                 </div>
@@ -593,7 +598,7 @@ $current_page = "dashboard";
         .then(data => {
             const container = document.getElementById("seriesGroupsList");
             if (data.success && data.seriesGroups && data.seriesGroups.length > 0) {
-                container.innerHTML = data.seriesGroups.map(group => `
+                container.innerHTML = (data.seriesGroups || []).map(group => {
                     <div class="series-group-card" onclick="location.href='books/list.php?series=${encodeURIComponent(group.series_name)}'" style="cursor: pointer;">
                         <div class="series-header">
                             <h4>📚 ${group.series_name}</h4>
